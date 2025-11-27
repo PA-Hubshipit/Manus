@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Send, Plus, X, Menu, Save, Download, Star, ThumbsUp, ThumbsDown, 
-  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon
+  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -102,11 +102,14 @@ export default function Home() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [collapsedResponses, setCollapsedResponses] = useState(new Set<number>());
   const [currentConversationTitle, setCurrentConversationTitle] = useState('New Chat');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState('');
   const [showPresets, setShowPresets] = useState(false);
   const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,6 +122,26 @@ export default function Home() {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // Auto-generate title based on first user message
+  useEffect(() => {
+    if (messages.length > 0 && currentConversationTitle === 'New Chat') {
+      const firstUserMessage = messages.find(m => m.type === 'user');
+      if (firstUserMessage) {
+        // Generate title from first message (max 50 chars)
+        const title = firstUserMessage.content.slice(0, 50).trim() + 
+                     (firstUserMessage.content.length > 50 ? '...' : '');
+        setCurrentConversationTitle(title);
+      }
+    }
+  }, [messages, currentConversationTitle]);
 
   const loadConversations = () => {
     try {
@@ -189,6 +212,27 @@ export default function Home() {
       newAttachments.splice(index, 1);
       return newAttachments;
     });
+  };
+
+  const handleTitleClick = () => {
+    setIsEditingTitle(true);
+    setEditTitleValue(currentConversationTitle);
+  };
+
+  const handleTitleSave = () => {
+    if (editTitleValue.trim()) {
+      setCurrentConversationTitle(editTitleValue.trim());
+      toast.success('Chat renamed');
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
+    }
   };
 
   const simulateAIResponse = async (provider: string, model: string, userMessage: string) => {
@@ -309,7 +353,10 @@ export default function Home() {
 
   const generateSynthesis = () => {
     const lastUserMessage = [...messages].reverse().find(m => m.type === 'user');
-    if (!lastUserMessage) return;
+    if (!lastUserMessage) {
+      toast.error('No messages to synthesize');
+      return;
+    }
 
     const aiResponses = messages.filter(m => 
       m.type === 'ai' && m.timestamp > lastUserMessage.timestamp
@@ -443,7 +490,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-3 md:p-4 border-b border-border">
-          <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
             <Button 
               variant="ghost"
               size="icon"
@@ -452,7 +499,24 @@ export default function Home() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-base md:text-xl font-semibold truncate">{currentConversationTitle}</h1>
+            {isEditingTitle ? (
+              <Input
+                ref={titleInputRef}
+                value={editTitleValue}
+                onChange={(e) => setEditTitleValue(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={handleTitleKeyDown}
+                className="text-base md:text-xl font-semibold h-8 px-2"
+              />
+            ) : (
+              <h1 
+                className="text-base md:text-xl font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                onClick={handleTitleClick}
+                title="Click to rename"
+              >
+                {currentConversationTitle}
+              </h1>
+            )}
           </div>
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
             <Button
@@ -482,14 +546,6 @@ export default function Home() {
               className="hidden sm:inline-flex"
             >
               <Download className="h-5 w-5" />
-            </Button>
-            <Button
-              onClick={() => setShowModelSelector(!showModelSelector)}
-              size="sm"
-              className="hidden sm:inline-flex"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Model
             </Button>
           </div>
         </div>
@@ -615,107 +671,80 @@ export default function Home() {
           </div>
         )}
 
-        {/* Model Selector Section */}
-        <div className="p-3 md:p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
-              <Button
-                variant="ghost"
-                onClick={() => setShowModelSelector(!showModelSelector)}
-                className="text-xs md:text-sm min-w-0"
-                size="sm"
-              >
-                <span className="truncate">{selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPresets(!showPresets)}
-                className="text-xs"
-              >
-                Presets
-              </Button>
-            </div>
-            <div className="flex items-center gap-1 md:gap-2 shrink-0">
-              <Button
-                variant={viewMode === 'chat' ? 'default' : 'ghost'}
-                size="icon"
-                onClick={() => setViewMode('chat')}
-                title="Chat View"
-                className="h-8 w-8"
-              >
-                <List className="h-3 w-3 md:h-4 md:w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'comparison' ? 'default' : 'ghost'}
-                size="icon"
-                onClick={() => setViewMode('comparison')}
-                title="Comparison View"
-                className="h-8 w-8 hidden sm:inline-flex"
-              >
-                <Grid className="h-3 w-3 md:h-4 md:w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={generateSynthesis}
-                title="Generate Synthesis"
-                className="h-8 w-8"
-              >
-                <GitCompare className="h-3 w-3 md:h-4 md:w-4" />
-              </Button>
-            </div>
-          </div>
+        {/* View Mode Buttons - Moved to separate bar */}
+        <div className="p-2 md:p-3 border-b border-border flex items-center justify-end gap-2">
+          <Button
+            variant={viewMode === 'chat' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('chat')}
+            title="Chat View"
+          >
+            <List className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Chat</span>
+          </Button>
+          <Button
+            variant={viewMode === 'comparison' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('comparison')}
+            title="Comparison View"
+            className="hidden sm:inline-flex"
+          >
+            <Grid className="h-4 w-4 mr-2" />
+            <span className="hidden md:inline">Compare</span>
+          </Button>
+        </div>
 
-          {/* Presets */}
-          {showPresets && (
-            <div className="mb-3 p-3 bg-muted rounded-lg">
-              <h3 className="text-sm font-medium mb-2">Quick Presets</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {Object.keys(MODEL_PRESETS).map((preset) => (
-                  <Button
-                    key={preset}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => applyPreset(preset)}
-                    className="justify-start text-xs"
-                  >
-                    {preset}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Selected Models */}
-          {showModelSelector && selectedModels.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {selectedModels.map(modelKey => {
-                const [provider, model] = modelKey.split(':');
-                return (
-                  <div
-                    key={modelKey}
-                    className="flex items-center gap-2 px-2 md:px-3 py-1 md:py-1.5 bg-muted rounded-full text-xs md:text-sm"
-                  >
-                    <div className={`w-2 h-2 rounded-full ${getProviderColor(provider)}`} />
-                    <span className="truncate max-w-[120px]">{model}</span>
+        {/* Model Selector Panel */}
+        {showModelSelector && (
+          <div className="p-3 md:p-4 border-b border-border bg-muted/50">
+            {/* Presets */}
+            {showPresets && (
+              <div className="mb-3 p-3 bg-background rounded-lg">
+                <h3 className="text-sm font-medium mb-2">Quick Presets</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {Object.keys(MODEL_PRESETS).map((preset) => (
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 p-0"
-                      onClick={() => toggleModel(provider, model)}
+                      key={preset}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applyPreset(preset)}
+                      className="justify-start text-xs"
                     >
-                      <X className="h-3 w-3" />
+                      {preset}
                     </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  ))}
+                </div>
+              </div>
+            )}
 
-          {/* Model Selector */}
-          {showModelSelector && (
-            <div className="mt-3 p-3 bg-muted rounded-lg max-h-60 md:max-h-96 overflow-y-auto">
+            {/* Selected Models */}
+            {selectedModels.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedModels.map(modelKey => {
+                  const [provider, model] = modelKey.split(':');
+                  return (
+                    <div
+                      key={modelKey}
+                      className="flex items-center gap-2 px-2 md:px-3 py-1 md:py-1.5 bg-background rounded-full text-xs md:text-sm"
+                    >
+                      <div className={`w-2 h-2 rounded-full ${getProviderColor(provider)}`} />
+                      <span className="truncate max-w-[120px]">{model}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 p-0"
+                        onClick={() => toggleModel(provider, model)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Model List */}
+            <div className="p-3 bg-background rounded-lg max-h-60 md:max-h-96 overflow-y-auto">
               {Object.entries(AI_PROVIDERS).map(([key, provider]) => (
                 <div key={key} className="mb-3 last:mb-0">
                   <div className="flex items-center gap-2 mb-2">
@@ -742,8 +771,8 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-3 md:p-4">
@@ -872,7 +901,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Input Area */}
+        {/* Input Area - Footer with reorganized buttons */}
         <div className="p-3 md:p-4 border-t border-border">
           {selectedModels.length === 0 && (
             <p className="text-xs text-muted-foreground mb-2 text-center">
@@ -900,7 +929,8 @@ export default function Home() {
             </div>
           )}
           
-          <div className="flex gap-2">
+          {/* Footer Controls Row */}
+          <div className="flex items-center gap-2 mb-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -908,6 +938,41 @@ export default function Home() {
               className="hidden"
               onChange={handleFileUpload}
             />
+            
+            {/* Models Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className="text-xs shrink-0"
+            >
+              {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
+            </Button>
+            
+            {/* Synthesizer Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateSynthesis}
+              title="Generate Synthesis"
+              className="shrink-0"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+            
+            {/* Presets Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPresets(!showPresets)}
+              className="text-xs shrink-0"
+            >
+              Presets
+            </Button>
+          </div>
+          
+          {/* Input Row */}
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="icon"
