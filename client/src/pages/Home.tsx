@@ -903,12 +903,6 @@ export default function Home() {
 
         {/* Input Area - Footer with reorganized buttons */}
         <div className="p-3 md:p-4 border-t border-border">
-          {selectedModels.length === 0 && (
-            <p className="text-xs text-muted-foreground mb-2 text-center">
-              Select at least one AI model to send a message
-            </p>
-          )}
-          
           {/* Attachments Preview */}
           {attachments.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
@@ -929,8 +923,8 @@ export default function Home() {
             </div>
           )}
           
-          {/* Footer Controls Row */}
-          <div className="flex items-center gap-2 mb-2">
+          {/* Footer Controls Row - Single Line */}
+          <div className="flex items-center justify-center gap-1.5 mb-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -944,7 +938,7 @@ export default function Home() {
               variant="outline"
               size="sm"
               onClick={() => setShowModelSelector(!showModelSelector)}
-              className="text-xs shrink-0"
+              className="text-[10px] h-7 px-2 shrink-0"
             >
               {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
             </Button>
@@ -952,20 +946,27 @@ export default function Home() {
             {/* Synthesizer Button */}
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={generateSynthesis}
               title="Generate Synthesis"
-              className="shrink-0"
+              className="h-7 w-7 shrink-0"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-3.5 w-3.5" />
             </Button>
+            
+            {/* Warning Text */}
+            {selectedModels.length === 0 && (
+              <p className="text-[10px] text-muted-foreground text-center px-1">
+                Select at least one AI model to send a message
+              </p>
+            )}
             
             {/* Presets Button */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowPresets(!showPresets)}
-              className="text-xs shrink-0"
+              className="text-[10px] h-7 px-2 shrink-0"
             >
               Presets
             </Button>
