@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Send, Plus, X, Menu, Save, Download, Star, ThumbsUp, ThumbsDown, 
-  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight
+  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight, Settings, Archive, Edit
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -108,6 +108,8 @@ export default function Home() {
   const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+  const [showQuickMenu, setShowQuickMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -959,7 +961,7 @@ export default function Home() {
           )}
           
           {/* Footer Controls Row - Single Line */}
-          <div className="flex items-center justify-center gap-1.5 mb-2">
+          <div className="flex items-center justify-center gap-1.5 mb-2 relative">
             <input
               ref={fileInputRef}
               type="file"
@@ -967,6 +969,107 @@ export default function Home() {
               className="hidden"
               onChange={handleFileUpload}
             />
+            
+            {/* Quick Menu (+) */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowQuickMenu(!showQuickMenu)}
+                className="h-7 w-7 shrink-0"
+                title="Quick Actions"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+              
+              {showQuickMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowQuickMenu(false)}
+                  />
+                  <div className="absolute bottom-full left-0 mb-2 w-56 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden">
+                    <button
+                      onClick={() => {
+                        setCurrentConversationTitle('New Chat');
+                        setMessages([]);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm">New Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleTitleClick();
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="text-sm">Rename Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        saveConversation();
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span className="text-sm">Save Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to clear this chat?')) {
+                          setMessages([]);
+                          setCurrentConversationTitle('New Chat');
+                        }
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-sm">Clear Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAnalytics(!showAnalytics);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <BarChart className="h-4 w-4" />
+                      <span className="text-sm">Show Analytics</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this chat?')) {
+                          setMessages([]);
+                          setCurrentConversationTitle('New Chat');
+                        }
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <span className="text-sm text-red-500">Delete Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        toast.info('Archive feature coming soon');
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Archive className="h-4 w-4" />
+                      <span className="text-sm">Archive (0)</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             
             {/* Models Button */}
             <Button
@@ -1001,6 +1104,61 @@ export default function Home() {
                 {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
               </p>
             )}
+            
+            {/* Settings Icon */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowSettings(!showSettings)}
+                className="h-7 w-7 shrink-0"
+                title="Settings"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </Button>
+              
+              {showSettings && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowSettings(false)}
+                  />
+                  <div className="absolute bottom-full right-0 mb-2 w-56 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden">
+                    <div className="px-4 py-3 border-b border-border">
+                      <h3 className="text-sm font-semibold">Settings</h3>
+                    </div>
+                    <button
+                      onClick={() => {
+                        toast.info('Theme settings coming soon');
+                        setShowSettings(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <span className="text-sm">Theme</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        toast.info('Language settings coming soon');
+                        setShowSettings(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <span className="text-sm">Language</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportConversation();
+                        setShowSettings(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="text-sm">Export Data</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             
             {/* Presets Button */}
             <Button
