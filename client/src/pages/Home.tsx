@@ -1058,6 +1058,16 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => {
+                        setShowMenu(true);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm">Saved Conversations</span>
+                    </button>
+                    <button
+                      onClick={() => {
                         toast.info('Archive feature coming soon');
                         setShowQuickMenu(false);
                       }}
