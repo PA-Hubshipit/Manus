@@ -110,6 +110,7 @@ export default function Home() {
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [archivedConversations, setArchivedConversations] = useState<SavedConversation[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +199,15 @@ export default function Home() {
     const selectedCount = selectedModels.filter(m => m.startsWith(`${provider}:`)).length;
     return `${selectedCount}/${providerModels.length}`;
   };
+
+  useEffect(() => {
+    const olderConvos = getOlderConversations();
+    olderConvos.forEach(convo => {
+      if (!archivedConversations.some(a => a.id === convo.id)) {
+        setArchivedConversations(prev => [...prev, convo]);
+      }
+    });
+  }, [savedConversations]);
 
   const applyPreset = (presetName: string) => {
     setSelectedModels(MODEL_PRESETS[presetName as keyof typeof MODEL_PRESETS]);
@@ -449,6 +459,20 @@ export default function Home() {
     } catch (error) {
       toast.error('Failed to delete conversation');
     }
+  };
+
+  const archiveConversation = (convo: SavedConversation) => {
+    setArchivedConversations(prev => [...prev, convo]);
+    deleteConversation(convo.id);
+    toast.success('Conversation archived');
+  };
+
+  const getRecentConversations = () => {
+    return savedConversations.slice(0, 3);
+  };
+
+  const getOlderConversations = () => {
+    return savedConversations.slice(3);
   };
 
   const exportConversation = () => {
@@ -1056,25 +1080,46 @@ export default function Home() {
                       <Trash2 className="h-4 w-4 text-red-500" />
                       <span className="text-sm text-red-500">Delete Chat</span>
                     </button>
+                    <div className="px-4 py-2 border-b border-border">
+                      <span className="text-xs font-semibold text-muted-foreground">RECENT CONVERSATIONS</span>
+                    </div>
+                    {getRecentConversations().length > 0 ? (
+                      getRecentConversations().map(convo => (
+                        <button
+                          key={convo.id}
+                          onClick={() => {
+                            loadConversation(convo);
+                            setShowQuickMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors text-left text-sm truncate"
+                          title={convo.title}
+                        >
+                          <MessageSquare className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{convo.title}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-xs text-muted-foreground">No saved conversations</div>
+                    )}
                     <button
                       onClick={() => {
                         setShowMenu(true);
                         setShowQuickMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left border-t border-border"
                     >
                       <MessageSquare className="h-4 w-4" />
-                      <span className="text-sm">Saved Conversations</span>
+                      <span className="text-sm">View All Saved</span>
                     </button>
                     <button
                       onClick={() => {
-                        toast.info('Archive feature coming soon');
+                        toast.info(`${archivedConversations.length} conversations in archive`);
                         setShowQuickMenu(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                     >
                       <Archive className="h-4 w-4" />
-                      <span className="text-sm">Archive (0)</span>
+                      <span className="text-sm">Archive ({archivedConversations.length})</span>
                     </button>
                   </div>
                 </>
