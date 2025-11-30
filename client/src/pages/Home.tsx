@@ -8,11 +8,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Providers are companies that create model families
 const AI_PROVIDERS = {
   anthropic: {
     name: 'Anthropic',
-    models: ['Claude 3 Haiku', 'Claude 3 Sonnet', 'Claude 3 Opus'],
+    models: ['Claude Sonnet 4.5', 'Claude Opus 4', 'Claude Haiku 4.5'],
     color: 'bg-orange-500',
     strengths: ['reasoning', 'ethics', 'long-form']
   },
@@ -24,84 +23,42 @@ const AI_PROVIDERS = {
   },
   google: {
     name: 'Google',
-    models: ['Gemini Nano', 'Gemini Pro', 'Gemini Ultra', 'Gemma', 'PaLM 2'],
+    models: ['Gemini Pro', 'Gemini Ultra'],
     color: 'bg-blue-500',
     strengths: ['multimodal', 'search', 'analysis']
-  },
-  meta: {
-    name: 'Meta',
-    models: ['Llama 2', 'Llama 3', 'Code Llama', 'Llama Guard'],
-    color: 'bg-blue-600',
-    strengths: ['open-source', 'coding', 'general']
-  },
-  mistral: {
-    name: 'Mistral AI',
-    models: ['Mistral 7B', 'Mixtral 8x7B', 'Mixtral 8x22B', 'Codestral'],
-    color: 'bg-orange-600',
-    strengths: ['efficient', 'coding', 'multilingual']
-  },
-  microsoft: {
-    name: 'Microsoft',
-    models: ['Phi-2', 'Phi-3 Mini', 'Phi-3 Small', 'Phi-3 Medium'],
-    color: 'bg-blue-400',
-    strengths: ['efficient', 'reasoning', 'coding']
-  },
-  qwen: {
-    name: 'Alibaba / Qwen',
-    models: ['Qwen 1.8B', 'Qwen 7B', 'Qwen 14B', 'Qwen 72B', 'Qwen1.5', 'Qwen2', 'Code Qwen'],
-    color: 'bg-red-500',
-    strengths: ['multilingual', 'coding', 'general']
-  },
-  xai: {
-    name: 'xAI',
-    models: ['Grok', 'Grok-1.5'],
-    color: 'bg-yellow-500',
-    strengths: ['reasoning', 'general', 'real-time']
-  },
-  cohere: {
-    name: 'Cohere',
-    models: ['Command', 'Command-R', 'Command-R+', 'Embed', 'Rerank'],
-    color: 'bg-teal-500',
-    strengths: ['enterprise', 'embeddings', 'reranking']
-  },
-  butterfly: {
-    name: 'Butterfly Effect Technology',
-    models: ['Manus'],
-    color: 'bg-pink-500',
-    strengths: ['general', 'creative']
-  },
-  moonshot: {
-    name: 'Moonshot AI',
-    models: ['Kimi'],
-    color: 'bg-cyan-500',
-    strengths: ['conversation', 'general']
-  },
-  palantir: {
-    name: 'Palantir',
-    models: ['API', 'Gotham', 'Foundry', 'Apollo'],
-    color: 'bg-slate-700',
-    strengths: ['data-integration', 'analytics', 'enterprise']
-  },
-  perplexity: {
-    name: 'Perplexity',
-    models: ['Perplexity Pro', 'Perplexity Standard'],
-    color: 'bg-indigo-500',
-    strengths: ['research', 'citations', 'facts']
   },
   deepseek: {
     name: 'DeepSeek',
     models: ['DeepSeek V3', 'DeepSeek Coder', 'DeepSeek Chat'],
     color: 'bg-purple-500',
     strengths: ['technical', 'coding', 'math']
+  },
+  manus: {
+    name: 'Manus',
+    models: ['Manus Pro', 'Manus Standard'],
+    color: 'bg-pink-500',
+    strengths: ['general', 'creative']
+  },
+  kimi: {
+    name: 'Kimi',
+    models: ['Kimi Chat', 'Kimi Plus'],
+    color: 'bg-cyan-500',
+    strengths: ['conversation', 'general']
+  },
+  perplexity: {
+    name: 'Perplexity',
+    models: ['Perplexity Pro', 'Perplexity Standard'],
+    color: 'bg-indigo-500',
+    strengths: ['research', 'citations', 'facts']
   }
 };
 
 const MODEL_PRESETS = {
-  'Coding Team': ['openai:GPT-4', 'deepseek:DeepSeek Coder', 'mistral:Codestral'],
-  'Creative Writers': ['openai:GPT-4 Turbo', 'anthropic:Claude 3 Opus', 'butterfly:Manus'],
-  'Research Squad': ['perplexity:Perplexity Pro', 'google:Gemini Pro', 'anthropic:Claude 3 Sonnet'],
-  'General Purpose': ['anthropic:Claude 3 Sonnet', 'openai:GPT-4', 'google:Gemini Pro'],
-  'Fast Responders': ['anthropic:Claude 3 Haiku', 'openai:GPT-3.5 Turbo', 'moonshot:Kimi']
+  'Coding Team': ['openai:GPT-4', 'deepseek:DeepSeek Coder', 'anthropic:Claude Sonnet 4.5'],
+  'Creative Writers': ['openai:GPT-4 Turbo', 'anthropic:Claude Opus 4', 'manus:Manus Pro'],
+  'Research Squad': ['perplexity:Perplexity Pro', 'google:Gemini Pro', 'anthropic:Claude Sonnet 4.5'],
+  'General Purpose': ['anthropic:Claude Sonnet 4.5', 'openai:GPT-4', 'google:Gemini Pro'],
+  'Fast Responders': ['anthropic:Claude Haiku 4.5', 'openai:GPT-3.5 Turbo', 'kimi:Kimi Chat']
 };
 
 interface Attachment {
@@ -154,9 +111,6 @@ export default function Home() {
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [archivedConversations, setArchivedConversations] = useState<SavedConversation[]>([]);
-  const [currentMode, setCurrentMode] = useState<'Agents' | 'Chat' | 'Conversation' | 'Empty'>('Chat');
-  const [showModeMenu, setShowModeMenu] = useState(false);
-  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -582,85 +536,14 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center justify-between p-3 md:p-4 border-b border-border">
           <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
-            {/* Header Hamburger Menu */}
-            <div className="relative">
-              <Button 
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-                className="shrink-0"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              
-              {showHeaderMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowHeaderMenu(false)} />
-                  <div className="absolute top-full left-0 mt-2 w-56 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden max-h-[80vh] overflow-y-auto">
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">USER ACCOUNT</div>
-                      {['Profile', 'Settings', 'Logout'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">AGENTS</div>
-                      {['Agent 1', 'Agent 2', 'Agent 3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">SKILLS</div>
-                      {['Skill 1', 'Skill 2', 'Skill 3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">HOSTING</div>
-                      {['Hosting 1', 'Hosting 2', 'Hosting 3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">IDE</div>
-                      {['AnythingLLM', 'Item2', 'Item3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">RUNNERS</div>
-                      {['Ollama', 'vLLM', 'LM Studio'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">HUBS</div>
-                      {['Hugging Face', 'Item2', 'Item3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">SETTINGS</div>
-                      {['API Server', 'Item2', 'Item3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div className="border-b border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">DATABASE</div>
-                      {['Database 1', 'Database 2', 'Database 3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                    <div>
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">SEARCH</div>
-                      {['SearchXNG', 'Item2', 'Item3'].map(item => (
-                        <button key={item} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">{item}</button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <Button 
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowMenu(!showMenu)}
+              className="shrink-0"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             {isEditingTitle ? (
               <Input
                 ref={titleInputRef}
@@ -859,18 +742,18 @@ export default function Home() {
         {/* Model Selector Panel */}
         {showModelSelector && (
           <div className="p-3 md:p-4 border-b border-border bg-muted/50">
-            {/* Presets - Only show Quick Presets */}
+            {/* Presets */}
             {showPresets && (
               <div className="mb-3 p-3 bg-background rounded-lg">
-                <h3 className="text-sm font-medium mb-3">Quick Presets</h3>
-                <div className="space-y-2">
+                <h3 className="text-sm font-medium mb-2">Quick Presets</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {Object.keys(MODEL_PRESETS).map((preset) => (
                     <Button
                       key={preset}
                       variant="outline"
                       size="sm"
                       onClick={() => applyPreset(preset)}
-                      className="w-full justify-start text-xs"
+                      className="justify-start text-xs"
                     >
                       {preset}
                     </Button>
@@ -907,7 +790,7 @@ export default function Home() {
 
             {/* Model List - Collapsible Provider Sections */}
             <div className="space-y-2">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase px-3 mb-3">Available Providers</h3>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase px-3 mb-3">Available Models</h3>
               {Object.entries(AI_PROVIDERS).map(([key, provider]) => (
                 <div key={key} className="border border-border rounded-lg overflow-hidden">
                   {/* Provider Header - Clickable */}
@@ -1111,7 +994,137 @@ export default function Home() {
               onChange={handleFileUpload}
             />
             
-
+            {/* Quick Menu (Hamburger) */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowQuickMenu(!showQuickMenu)}
+                className="h-7 w-7 shrink-0"
+                title="Quick Actions"
+              >
+                <Menu className="h-3.5 w-3.5" />
+              </Button>
+              
+              {showQuickMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowQuickMenu(false)}
+                  />
+                  <div className="absolute bottom-full left-0 mb-2 w-56 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden">
+                    <button
+                      onClick={() => {
+                        setCurrentConversationTitle('New Chat');
+                        setMessages([]);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm">New Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleTitleClick();
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="text-sm">Rename Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        saveConversation();
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span className="text-sm">Save Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to clear this chat?')) {
+                          setMessages([]);
+                          setCurrentConversationTitle('New Chat');
+                        }
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-sm">Clear Chat</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAnalytics(!showAnalytics);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <BarChart className="h-4 w-4" />
+                      <span className="text-sm">Show Analytics</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this chat?')) {
+                          setMessages([]);
+                          setCurrentConversationTitle('New Chat');
+                        }
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <span className="text-sm text-red-500">Delete Chat</span>
+                    </button>
+                    <div className="px-4 py-2 border-b border-border">
+                      <span className="text-xs font-semibold text-muted-foreground">RECENT CONVERSATIONS</span>
+                    </div>
+                    {getRecentConversations().length > 0 ? (
+                      getRecentConversations().map(convo => (
+                        <button
+                          key={convo.id}
+                          onClick={() => {
+                            loadConversation(convo);
+                            setShowQuickMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors text-left text-sm truncate"
+                          title={convo.title}
+                        >
+                          <MessageSquare className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{convo.title}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-xs text-muted-foreground">No saved conversations</div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowMenu(true);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left border-t border-border"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm">View All Saved</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        toast.info(`${archivedConversations.length} conversations in archive`);
+                        setShowQuickMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Archive className="h-4 w-4" />
+                      <span className="text-sm">Archive ({archivedConversations.length})</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             
             {/* New Chat Button (+) */}
             <Button
@@ -1216,43 +1229,18 @@ export default function Home() {
               )}
             </div>
             
-            {/* Mode Button */}
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowModeMenu(!showModeMenu)}
-                className="text-[10px] h-7 px-2 shrink-0"
-              >
-                Mode
-              </Button>
-              
-              {showModeMenu && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowModeMenu(false)}
-                  />
-                  <div className="absolute bottom-full right-auto left-0 mb-2 w-40 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden">
-                    {['Agents', 'Chat', 'Conversation', 'Empty'].map(mode => (
-                      <button
-                        key={mode}
-                        onClick={() => {
-                          setCurrentMode(mode as 'Agents' | 'Chat' | 'Conversation' | 'Empty');
-                          setShowModeMenu(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
-                          currentMode === mode ? 'bg-accent' : 'hover:bg-accent'
-                        }`}
-                      >
-                        <span>{mode}</span>
-                        {currentMode === mode && <span className="ml-auto text-xs">✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Save Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                saveConversation();
+              }}
+              className="h-7 w-7 shrink-0"
+              title="Save Chat"
+            >
+              <Save className="h-3.5 w-3.5" />
+            </Button>
             
             {/* Presets Button */}
             <Button
