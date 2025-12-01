@@ -754,28 +754,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* View Mode Buttons - Moved to separate bar */}
-        <div className="p-2 md:p-3 border-b border-border flex items-center justify-end gap-2">
-          <Button
-            variant={viewMode === 'chat' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('chat')}
-            title="Chat View"
-          >
-            <List className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Chat</span>
-          </Button>
-          <Button
-            variant={viewMode === 'comparison' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('comparison')}
-            title="Comparison View"
-            className="hidden sm:inline-flex"
-          >
-            <Grid className="h-4 w-4 mr-2" />
-            <span className="hidden md:inline">Compare</span>
-          </Button>
-        </div>
+
 
         {/* Model Selector Panel */}
         {showModelSelector && (
