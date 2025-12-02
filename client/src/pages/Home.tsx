@@ -1057,64 +1057,13 @@ export default function Home() {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowFooterMenu(false)}
                   />
-                  <div className="absolute bottom-full left-0 mb-2 w-56 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden">
-                    <button
-                      onClick={() => {
-                        toast.info('Footer menu option 1');
-                        setShowFooterMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors"
-                    >
-                      Option 1
-                    </button>
-                    <button
-                      onClick={() => {
-                        toast.info('Footer menu option 2');
-                        setShowFooterMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors"
-                    >
-                      Option 2
-                    </button>
-                    <button
-                      onClick={() => {
-                        toast.info('Footer menu option 3');
-                        setShowFooterMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors"
-                    >
-                      Option 3
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {/* Plus Menu Button */}
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowPlusMenu(!showPlusMenu)}
-                className="h-7 w-7 shrink-0"
-                title="Menu"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-              
-              {showPlusMenu && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowPlusMenu(false)}
-                  />
                   <div className="absolute bottom-full left-0 mb-2 w-72 bg-card rounded-lg shadow-2xl z-50 border border-border overflow-hidden">
                     {/* Action Buttons */}
                     <button
                       onClick={() => {
                         setCurrentConversationTitle('New Chat');
                         setMessages([]);
-                        setShowPlusMenu(false);
+                        setShowFooterMenu(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                     >
@@ -1125,7 +1074,7 @@ export default function Home() {
                       onClick={() => {
                         setIsEditingTitle(true);
                         setEditTitleValue(currentConversationTitle);
-                        setShowPlusMenu(false);
+                        setShowFooterMenu(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                     >
@@ -1135,7 +1084,7 @@ export default function Home() {
                     <button
                       onClick={() => {
                         saveConversation();
-                        setShowPlusMenu(false);
+                        setShowFooterMenu(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                     >
@@ -1147,7 +1096,7 @@ export default function Home() {
                         if (confirm('Are you sure you want to clear this chat?')) {
                           setMessages([]);
                           setCurrentConversationTitle('New Chat');
-                          setShowPlusMenu(false);
+                          setShowFooterMenu(false);
                         }
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
@@ -1158,7 +1107,7 @@ export default function Home() {
                     <button
                       onClick={() => {
                         setShowAnalytics(!showAnalytics);
-                        setShowPlusMenu(false);
+                        setShowFooterMenu(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                     >
@@ -1170,7 +1119,7 @@ export default function Home() {
                         if (confirm('Are you sure you want to delete this chat?')) {
                           setMessages([]);
                           setCurrentConversationTitle('New Chat');
-                          setShowPlusMenu(false);
+                          setShowFooterMenu(false);
                         }
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left text-red-500"
@@ -1188,7 +1137,7 @@ export default function Home() {
                             key={convo.id}
                             onClick={() => {
                               loadConversation(convo);
-                              setShowPlusMenu(false);
+                              setShowFooterMenu(false);
                             }}
                             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                           >
@@ -1199,7 +1148,7 @@ export default function Home() {
                         <button
                           onClick={() => {
                             setShowMenu(true);
-                            setShowPlusMenu(false);
+                            setShowFooterMenu(false);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                         >
@@ -1209,7 +1158,7 @@ export default function Home() {
                         <button
                           onClick={() => {
                             toast.info(`Archive (${archivedConversations.length})`);
-                            setShowPlusMenu(false);
+                            setShowFooterMenu(false);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                         >
@@ -1222,6 +1171,20 @@ export default function Home() {
                 </>
               )}
             </div>
+            
+            {/* New Chat Button (+) */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setCurrentConversationTitle('New Chat');
+                setMessages([]);
+              }}
+              className="h-7 w-7 shrink-0"
+              title="New Chat"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
             
             {/* Models Button */}
             <Button
