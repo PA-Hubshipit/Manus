@@ -1345,9 +1345,15 @@ export default function Home() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
+                  if (e.key === 'Enter') {
+                    if (e.shiftKey) {
+                      // Allow default behavior for Shift+Enter (new line)
+                      return;
+                    } else {
+                      // Prevent default and send message for Enter alone
+                      e.preventDefault();
+                      handleSend();
+                    }
                   }
                 }}
                 placeholder="Type your message..."
