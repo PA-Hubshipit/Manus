@@ -274,9 +274,15 @@ export default function Home() {
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = 'auto';
-      const newHeight = Math.min(textarea.scrollHeight, 200); // max 200px
+      // Reset height to recalculate
+      textarea.style.height = '40px';
+      // Calculate new height based on content
+      const scrollHeight = textarea.scrollHeight;
+      const maxHeight = 200; // max height in pixels
+      const newHeight = Math.min(scrollHeight, maxHeight);
       textarea.style.height = `${newHeight}px`;
+      // Enable scrolling if content exceeds max height
+      textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
     }
   }, [inputMessage]);
 
@@ -1347,7 +1353,7 @@ export default function Home() {
                 placeholder="Type your message..."
                 disabled={selectedModels.length === 0}
                 rows={1}
-                className="w-full min-h-[40px] max-h-[200px] px-3 py-2.5 rounded-md border border-input bg-background text-sm resize-none overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full min-h-[40px] max-h-[200px] px-3 py-2.5 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ lineHeight: '1.5' }}
               />
             </div>
