@@ -112,6 +112,16 @@ interface Attachment {
   url: string;
 }
 
+interface CustomPreset {
+  id: string;
+  name: string;
+  description: string;
+  models: string[];
+  type: 'built-in' | 'custom';
+  color?: string;
+  icon?: string;
+}
+
 interface Message {
   id: number;
   type: 'user' | 'ai' | 'synthesis';
@@ -161,6 +171,12 @@ export default function Home() {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [expandedMenuGroups, setExpandedMenuGroups] = useState<Set<string>>(new Set());
   const [showFooterMenu, setShowFooterMenu] = useState(false);
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+  const [showPresetEditor, setShowPresetEditor] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<CustomPreset | null>(null);
+  const [presetEditorName, setPresetEditorName] = useState('');
+  const [presetEditorDescription, setPresetEditorDescription] = useState('');
+  const [presetEditorModels, setPresetEditorModels] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,6 +192,7 @@ export default function Home() {
 
   useEffect(() => {
     loadConversations();
+    loadCustomPresets();
   }, []);
 
   useEffect(() => {
@@ -197,6 +214,91 @@ export default function Home() {
       }
     }
   }, [messages, currentConversationTitle]);
+
+  const loadCustomPresets = () => {
+    try {
+      const stored = localStorage.getItem('customPresets');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setCustomPresets(parsed);
+      }
+    } catch (error) {
+      console.error('Error loading custom presets:', error);
+    }
+  };
+
+  const saveCustomPresets = (presets: CustomPreset[]) => {
+    try {
+      localStorage.setItem('customPresets', JSON.stringify(presets));
+      setCustomPresets(presets);
+    } catch (error) {
+      console.error('Error saving custom presets:', error);
+    }
+  };
+
+  const openPresetEditor = (preset?: CustomPreset) => {
+    if (preset) {
+      setEditingPreset(preset);
+      setPresetEditorName(preset.name);
+      setPresetEditorDescription(preset.description);
+      setPresetEditorModels(preset.models);
+    } else {
+      setEditingPreset(null);
+      setPresetEditorName('');
+      setPresetEditorDescription('');
+      setPresetEditorModels([]);
+    }
+    setShowPresetEditor(true);
+  };
+
+  const savePreset = () => {
+    if (!presetEditorName.trim()) {
+      toast.error('Please enter a preset name');
+      return;
+    }
+    if (presetEditorModels.length === 0) {
+      toast.error('Please select at least one model');
+      return;
+    }
+
+    const newPreset: CustomPreset = {
+      id: editingPreset?.id || `custom-${Date.now()}`,
+      name: presetEditorName,
+      description: presetEditorDescription,
+      models: presetEditorModels,
+      type: 'custom'
+    };
+
+    let updatedPresets;
+    if (editingPreset) {
+      updatedPresets = customPresets.map(p => p.id === editingPreset.id ? newPreset : p);
+      toast.success('Preset updated successfully');
+    } else {
+      updatedPresets = [...customPresets, newPreset];
+      toast.success('Preset created successfully');
+    }
+
+    saveCustomPresets(updatedPresets);
+    setShowPresetEditor(false);
+  };
+
+  const deletePreset = (presetId: string) => {
+    const updatedPresets = customPresets.filter(p => p.id !== presetId);
+    saveCustomPresets(updatedPresets);
+    toast.success('Preset deleted successfully');
+  };
+
+  const getAllPresets = (): CustomPreset[] => {
+    // Convert built-in presets to CustomPreset format
+    const builtInPresets: CustomPreset[] = Object.entries(MODEL_PRESETS).map(([name, models]) => ({
+      id: `built-in-${name}`,
+      name,
+      description: '',
+      models,
+      type: 'built-in' as const
+    }));
+    return [...builtInPresets, ...customPresets];
+  };
 
   const loadConversations = () => {
     try {
@@ -286,10 +388,10 @@ export default function Home() {
     }
   }, [inputMessage]);
 
-  const applyPreset = (presetName: string) => {
-    setSelectedModels(MODEL_PRESETS[presetName as keyof typeof MODEL_PRESETS]);
+  const applyPreset = (preset: CustomPreset) => {
+    setSelectedModels(preset.models);
     setShowPresets(false);
-    toast.success(`Applied preset: ${presetName}`);
+    toast.success(`Applied preset: ${preset.name}`);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -803,18 +905,53 @@ export default function Home() {
             {/* Presets - Only show Quick Presets */}
             {showPresets && (
               <div className="mb-3 p-3 bg-background rounded-lg">
-                <h3 className="text-sm font-medium mb-3">Quick Presets</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium">Quick Presets</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openPresetEditor()}
+                    className="text-xs h-7"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    New
+                  </Button>
+                </div>
                 <div className="space-y-2">
-                  {Object.keys(MODEL_PRESETS).map((preset) => (
-                    <Button
-                      key={preset}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => applyPreset(preset)}
-                      className="w-full justify-start text-xs"
-                    >
-                      {preset}
-                    </Button>
+                  {getAllPresets().map((preset) => (
+                    <div key={preset.id} className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyPreset(preset)}
+                        className="flex-1 justify-start text-xs"
+                      >
+                        {preset.name}
+                        {preset.type === 'custom' && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">Custom</span>
+                        )}
+                      </Button>
+                      {preset.type === 'custom' && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openPresetEditor(preset)}
+                            className="h-8 w-8 shrink-0"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deletePreset(preset.id)}
+                            className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1261,6 +1398,16 @@ export default function Home() {
                     </div>
                     <button
                       onClick={() => {
+                        openPresetEditor();
+                        setShowSettings(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    >
+                      <Zap className="h-4 w-4" />
+                      <span className="text-sm">Manage Presets</span>
+                    </button>
+                    <button
+                      onClick={() => {
                         toast.info('Theme settings coming soon');
                         setShowSettings(false);
                       }}
@@ -1363,6 +1510,107 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Preset Editor Modal */}
+      {showPresetEditor && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowPresetEditor(false)}
+          />
+          <div className="fixed inset-4 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl bg-card rounded-lg shadow-2xl z-50 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold">
+                {editingPreset ? 'Edit Preset' : 'Create New Preset'}
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowPresetEditor(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Preset Name */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Preset Name</label>
+                <Input
+                  value={presetEditorName}
+                  onChange={(e) => setPresetEditorName(e.target.value)}
+                  placeholder="e.g., My Research Team"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description (Optional)</label>
+                <Input
+                  value={presetEditorDescription}
+                  onChange={(e) => setPresetEditorDescription(e.target.value)}
+                  placeholder="Brief description of this preset's purpose"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Model Selection */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Select Models</label>
+                <div className="space-y-3">
+                  {Object.entries(AI_PROVIDERS).map(([providerId, provider]) => (
+                    <div key={providerId} className="border border-border rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`h-2 w-2 rounded-full ${provider.color}`} />
+                        <span className="text-sm font-medium">{provider.name}</span>
+                      </div>
+                      <div className="space-y-2 ml-4">
+                        {provider.models.map((model) => {
+                          const modelKey = `${providerId}:${model}`;
+                          return (
+                            <label key={modelKey} className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={presetEditorModels.includes(modelKey)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setPresetEditorModels([...presetEditorModels, modelKey]);
+                                  } else {
+                                    setPresetEditorModels(presetEditorModels.filter(m => m !== modelKey));
+                                  }
+                                }}
+                              />
+                              <span className="text-sm">{model}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={() => setShowPresetEditor(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={savePreset}
+                disabled={!presetEditorName.trim() || presetEditorModels.length === 0}
+              >
+                {editingPreset ? 'Update Preset' : 'Create Preset'}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
