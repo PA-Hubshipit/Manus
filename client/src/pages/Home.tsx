@@ -1085,51 +1085,6 @@ export default function Home() {
                   </Button>
                 </div>
               )}
-
-              {/* Collapsible Provider Sections (kept for reference/browsing) */}
-              <div className="mt-4">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase px-3 mb-3">Browse All Providers</h3>
-              {Object.entries(AI_PROVIDERS).map(([key, provider]) => (
-                <div key={key} className="border border-border rounded-lg overflow-hidden">
-                  {/* Provider Header - Clickable */}
-                  <button
-                    onClick={() => toggleProvider(key)}
-                    className="w-full flex items-center justify-between p-3 md:p-4 bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <ChevronRight 
-                        className={`h-4 w-4 transition-transform ${
-                          expandedProviders.has(key) ? 'rotate-90' : ''
-                        }`}
-                      />
-                      <div className={`w-3 h-3 rounded-full ${provider.color}`} />
-                      <span className="font-medium text-sm md:text-base">{provider.name}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {getProviderSelectionCount(key)}
-                    </span>
-                  </button>
-                  
-                  {/* Provider Models - Collapsible */}
-                  {expandedProviders.has(key) && (
-                    <div className="p-2 md:p-3 bg-background space-y-1">
-                      {provider.models.map(model => (
-                        <label
-                          key={model}
-                          className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={selectedModels.includes(`${key}:${model}`)}
-                            onCheckedChange={() => toggleModel(key, model)}
-                          />
-                          <span className="text-sm">{model}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-              </div>
             </div>
             )}
           </div>
@@ -1595,7 +1550,7 @@ export default function Home() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
 
-                placeholder="Type your message..."
+                placeholder="Select at least one AI model to send a message"
                 disabled={selectedModels.length === 0}
                 rows={1}
                 className="w-full min-h-[40px] max-h-[200px] px-3 py-2.5 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
