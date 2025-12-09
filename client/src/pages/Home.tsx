@@ -292,7 +292,7 @@ export default function Home() {
       id: editingPreset?.id || `custom-${Date.now()}`,
       name: presetEditorName,
       description: presetEditorDescription,
-      models: presetEditorModels,
+      models: [...presetEditorModels], // Create a new array copy
       type: 'custom'
     };
 
@@ -307,6 +307,11 @@ export default function Home() {
 
     saveCustomPresets(updatedPresets);
     setShowPresetEditor(false);
+    // Reset editor state
+    setEditingPreset(null);
+    setPresetEditorName('');
+    setPresetEditorDescription('');
+    setPresetEditorModels([]);
   };
 
   const deletePreset = (presetId: string) => {
@@ -842,6 +847,14 @@ export default function Home() {
             >
               <Download className="h-5 w-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.close()}
+              title="Close Chat"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
@@ -912,8 +925,17 @@ export default function Home() {
                 items={['SearchXNG', 'Item2', 'Item3']} 
                 isExpanded={expandedMenuGroups.has('search')}
                 onToggle={() => toggleMenuGroup('search')}
-                isLast
               />
+              <button
+                onClick={() => {
+                  window.close();
+                  setShowMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left border-t border-border"
+              >
+                <X className="h-4 w-4" />
+                <span className="text-sm font-medium">Close App</span>
+              </button>
             </div>
           </>
         )}
@@ -1425,17 +1447,6 @@ export default function Home() {
               </Button>
             )}
             
-            {/* Dynamic Text */}
-            {selectedModels.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground text-center px-1">
-                Select at least one AI model to send a message
-              </p>
-            ) : (
-              <p className="text-[10px] text-muted-foreground text-center px-1">
-                {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
-              </p>
-            )}
-            
             {/* Settings Icon */}
             <div className="relative">
               <Button
@@ -1527,17 +1538,6 @@ export default function Home() {
                 Presets
               </Button>
             </div>
-            
-            {/* Settings Icon */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowSettings(!showSettings)}
-              className="h-7 w-7 shrink-0"
-              title="Settings"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
           </div>
           
           {/* Input Row */}
