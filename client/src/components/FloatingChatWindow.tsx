@@ -3,6 +3,10 @@ import Draggable from 'react-draggable';
 import { Button } from '@/components/ui/button';
 import { Pin, Minus, Maximize2, Minimize2, X } from 'lucide-react';
 import { ChatFooter } from '@/components/ChatFooter';
+import { ModelSelector } from './ModelSelector';
+import { PresetsPanel } from './PresetsPanel';
+import { SettingsMenu } from './SettingsMenu';
+import { AI_PROVIDERS } from '@/lib/ai-providers';
 import { toast } from 'sonner';
 
 interface FloatingChatWindowProps {
@@ -24,6 +28,12 @@ export function FloatingChatWindow({
   const [isMaximized, setIsMaximized] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
 
   const handleDrag = (_e: any, data: { x: number; y: number }) => {
     const newPos = { x: data.x, y: data.y };
@@ -53,6 +63,34 @@ export function FloatingChatWindow({
 
   const handleAttach = () => {
     toast.info('Attach files coming soon');
+  };
+
+  const toggleModel = (provider: string, model: string) => {
+    const modelKey = `${provider}:${model}`;
+    setSelectedModels(prev => 
+      prev.includes(modelKey) 
+        ? prev.filter(m => m !== modelKey)
+        : [...prev, modelKey]
+    );
+  };
+
+  const addModelFromDropdown = () => {
+    if (selectedProvider && selectedModel) {
+      toggleModel(selectedProvider, selectedModel);
+      setSelectedProvider('');
+      setSelectedModel('');
+    }
+  };
+
+  const getProviderColor = (provider?: string) => {
+    if (!provider) return 'bg-gray-500';
+    return AI_PROVIDERS[provider as keyof typeof AI_PROVIDERS]?.color || 'bg-gray-500';
+  };
+
+  const applyPreset = (models: string[]) => {
+    setSelectedModels(models);
+    setShowPresets(false);
+    toast.success('Preset applied!');
   };
 
   // Calculate window dimensions
@@ -138,6 +176,25 @@ export function FloatingChatWindow({
         {/* Content - Only show if not minimized */}
         {!isMinimized && (
           <>
+            {/* Model Selector Panel */}
+            {showModelSelector && (
+              <ModelSelector
+                selectedModels={selectedModels}
+                selectedProvider={selectedProvider}
+                selectedModel={selectedModel}
+                onProviderChange={setSelectedProvider}
+                onModelChange={setSelectedModel}
+                onToggleModel={toggleModel}
+                onAddModel={addModelFromDropdown}
+                getProviderColor={getProviderColor}
+              />
+            )}
+
+            {/* Presets Panel */}
+            {showPresets && (
+              <PresetsPanel onApplyPreset={applyPreset} />
+            )}
+
             <div className="flex-1 p-4 overflow-auto min-h-0">
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <div className="text-6xl mb-4">💬</div>
@@ -148,13 +205,20 @@ export function FloatingChatWindow({
             
             {/* Footer */}
             <ChatFooter
-              selectedModelsCount={0}
-              onModelsClick={() => toast.info('Models selection coming soon')}
-              onNewChat={() => toast.info('New chat coming soon')}
+              selectedModelsCount={selectedModels.length}
+              onModelsClick={() => setShowModelSelector(!showModelSelector)}
+              onNewChat={() => {
+                setInputMessage('');
+                setSelectedModels([]);
+                toast.success('New chat started');
+              }}
               onSave={() => toast.info('Save conversation coming soon')}
-              onSettingsClick={() => toast.info('Settings coming soon')}
+              onSettingsClick={() => setShowSettings(!showSettings)}
               onSummarizerClick={() => toast.info('Summarizer coming soon')}
-              onPresetsClick={() => toast.info('Presets coming soon')}
+              onPresetsClick={() => {
+                setShowPresets(!showPresets);
+                setShowModelSelector(false);
+              }}
               inputMessage={inputMessage}
               onInputChange={setInputMessage}
               onSend={handleSend}
