@@ -168,7 +168,7 @@ interface SavedConversation {
   title: string;
 }
 
-export default function Home() {
+export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
