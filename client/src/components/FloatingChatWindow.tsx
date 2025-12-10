@@ -62,7 +62,7 @@ export function FloatingChatWindow({
             <span className="text-sm font-semibold">Chat {id}</span>
           </div>
           
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
             {/* Pin/Unpin Button */}
             <Button
               variant="ghost"
