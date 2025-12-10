@@ -71,11 +71,13 @@ export function PresetsManagement({
   };
 
   const handleEditPreset = (preset: CustomPreset) => {
+    console.log('Editing preset:', preset);
     setEditingPreset(preset);
     setIsCreating(false);
     setPresetName(preset.name);
     setPresetDescription(preset.description);
-    setPresetModels(preset.models);
+    setPresetModels([...preset.models]); // Create a new array copy
+    console.log('Preset models loaded:', preset.models);
   };
 
   const handleSavePreset = () => {
@@ -88,13 +90,16 @@ export function PresetsManagement({
       return;
     }
 
+    console.log('Saving preset with models:', presetModels);
+
     if (editingPreset) {
       // Update existing preset
       const updated = localCustomPresets.map(p =>
         p.id === editingPreset.id
-          ? { ...p, name: presetName, description: presetDescription, models: presetModels }
+          ? { ...p, name: presetName, description: presetDescription, models: [...presetModels] }
           : p
       );
+      console.log('Updated presets:', updated);
       setLocalCustomPresets(updated);
       toast.success('Preset updated');
     } else {
@@ -151,6 +156,7 @@ export function PresetsManagement({
   };
 
   const handleSaveAll = () => {
+    console.log('Saving all changes. Custom presets:', localCustomPresets);
     onSaveCustomPresets(localCustomPresets);
     onSaveDefaultModels(localDefaultModels);
     toast.success('All changes saved');
