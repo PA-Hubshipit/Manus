@@ -847,18 +847,7 @@ export default function ChatPage() {
             >
               <Download className="h-5 w-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                if (window.confirm('Are you sure you want to close the app?')) {
-                  window.close();
-                }
-              }}
-              title="Close Chat"
-            >
-              <X className="h-5 w-5" />
-            </Button>
+
           </div>
         </div>
 
