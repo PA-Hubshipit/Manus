@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Copy } from 'lucide-react';
+import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChatFooterProps {
@@ -219,15 +219,15 @@ export function ChatFooter({
             )}
           </div>
           
-          {/* Copy/Save Icon */}
+          {/* Save Icon */}
           <Button
             variant="outline"
             size="icon"
             onClick={() => onSave?.()}
-            title="Copy/Save Conversation"
+            title="Save Conversation"
             className="h-7 w-7 shrink-0"
           >
-            <Copy className="h-3.5 w-3.5" />
+            <Save className="h-3.5 w-3.5" />
           </Button>
           
           {/* Presets Button */}
