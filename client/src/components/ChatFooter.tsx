@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download, X, Image as ImageIcon, Zap } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 
 interface Attachment {
@@ -80,11 +80,34 @@ export function ChatFooter({
   // Auto-grow textarea
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onInputChange?.(e.target.value);
+  };
+
+  const adjustTextareaHeight = () => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      // Reset height to allow shrinking
+      textareaRef.current.style.height = '40px';
+      
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          const scrollHeight = textareaRef.current.scrollHeight;
+          textareaRef.current.style.height = `${Math.min(scrollHeight, 200)}px`;
+          
+          // Enable scrolling when max height reached
+          if (scrollHeight > 200) {
+            textareaRef.current.style.overflowY = 'auto';
+          } else {
+            textareaRef.current.style.overflowY = 'hidden';
+          }
+        }
+      });
     }
   };
+
+  // Auto-adjust height when inputMessage changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputMessage]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -397,8 +420,8 @@ export function ChatFooter({
             placeholder="Select at least one AI model to send a message"
             disabled={selectedModelsCount === 0}
             rows={1}
-            className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden"
-            style={{ lineHeight: '1.5', minHeight: '40px', maxHeight: '200px' }}
+            className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ lineHeight: '1.5', height: '40px', minHeight: '40px', maxHeight: '200px', overflowY: 'hidden' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

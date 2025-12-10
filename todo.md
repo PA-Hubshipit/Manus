@@ -44,6 +44,10 @@
 - [ ] Create checkpoint with complete adaptation
 
 ## URGENT FIXES
+- [ ] Fix Summarizer button - Shows "select models" error even when 3 models are already selected
+  - Check handleSummarizer/onSummarizerClick function in FloatingChatWindow
+  - Ensure it uses the current selectedModels state
+  - Should generate synthesis from all selected models' responses
 - [ ] Fix PresetEditorModal UI to match Reference Version screenshot exactly
   - Show provider sections with colored dots (Anthropic=orange, OpenAI=green, Google=blue)
   - Display checkboxes for each model under provider (blue checkmark when selected)
