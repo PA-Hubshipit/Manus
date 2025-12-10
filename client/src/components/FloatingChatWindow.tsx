@@ -42,6 +42,7 @@ export function FloatingChatWindow({
 
   return (
     <Draggable
+      key={`draggable-${isPinned}-${isMaximized}`}
       disabled={isPinned || isMaximized}
       position={position}
       onDrag={handleDrag}
@@ -49,12 +50,16 @@ export function FloatingChatWindow({
       bounds="parent"
     >
       <div
-        className={`fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden ${
-          isMaximized ? 'inset-4' : isMinimized ? 'w-80 h-12' : 'w-[600px] h-[700px]'
+        className={`fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col ${
+          isMaximized ? 'inset-4' : isMinimized ? 'w-80 h-12' : 'w-full md:w-[600px]'
         }`}
         style={{
           zIndex: 1000,
-          ...(isMaximized ? {} : { maxWidth: '90vw', maxHeight: '90vh' })
+          ...(!isMaximized && !isMinimized ? { 
+            maxWidth: '90vw', 
+            height: 'min(500px, 70vh)',
+            maxHeight: '70vh'
+          } : {})
         }}
       >
         {/* Window Header */}
@@ -152,7 +157,7 @@ export function FloatingChatWindow({
 
         {/* Window Content */}
         {!isMinimized && (
-          <div className="h-full flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 p-4 overflow-auto">
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <div className="text-6xl mb-4">💬</div>
@@ -162,7 +167,7 @@ export function FloatingChatWindow({
             </div>
             
             {/* Footer Control Panel */}
-            <div className="border-t border-border p-2 md:p-3">
+            <div className="border-t border-border p-2 md:p-3 shrink-0">
               <div className="flex items-center gap-1 md:gap-2 justify-between">
                 {/* Left side controls */}
                 <div className="flex items-center gap-1">
