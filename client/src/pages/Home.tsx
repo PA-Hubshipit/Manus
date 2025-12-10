@@ -331,7 +331,15 @@ export default function Home() {
       models: preset.models,
       type: 'custom' as const // Mark as custom since interface only allows 'custom'
     }));
-    return [...builtInPresets, ...customPresets];
+    
+    // Get names of custom presets
+    const customPresetNames = new Set(customPresets.map(p => p.name));
+    
+    // Filter out built-in presets that have been customized
+    const filteredBuiltIns = builtInPresets.filter(p => !customPresetNames.has(p.name));
+    
+    // Return custom presets first (they override built-ins), then remaining built-ins
+    return [...customPresets, ...filteredBuiltIns];
   };
 
   const loadConversations = () => {
@@ -861,6 +869,8 @@ export default function Home() {
               size="icon"
               onClick={() => {
                 if (window.confirm('Are you sure you want to close the app?')) {
+                  toast.info('Please close this browser tab/window manually');
+                  // Try to close, but it may not work in all contexts
                   window.close();
                 }
               }}
@@ -942,6 +952,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   if (window.confirm('Are you sure you want to close the app?')) {
+                    toast.info('Please close this browser tab/window manually');
                     window.close();
                   }
                   setShowMenu(false);
