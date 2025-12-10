@@ -1,7 +1,22 @@
 import { Button } from '@/components/ui/button';
-import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download } from 'lucide-react';
+import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download, X, Image as ImageIcon, Zap } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
+
+interface Attachment {
+  name: string;
+  type: string;
+  size: number;
+  file: File;
+}
+
+export interface SavedConversation {
+  id: string;
+  title: string;
+  timestamp: string;
+  messages?: any[];
+  models?: string[];
+}
 
 interface ChatFooterProps {
   selectedModelsCount: number;
@@ -21,7 +36,14 @@ interface ChatFooterProps {
   onRenameChat?: () => void;
   onShowAnalytics?: () => void;
   onExportData?: () => void;
+  onPresetsSettings?: () => void;
   messagesCount?: number;
+  attachments?: Attachment[];
+  onRemoveAttachment?: (index: number) => void;
+  savedConversations?: SavedConversation[];
+  onLoadConversation?: (convo: SavedConversation) => void;
+  onViewAllSaved?: () => void;
+  archivedCount?: number;
 }
 
 export function ChatFooter({
@@ -42,14 +64,54 @@ export function ChatFooter({
   onRenameChat,
   onShowAnalytics,
   onExportData,
-  messagesCount = 0
+  onPresetsSettings,
+  messagesCount = 0,
+  attachments = [],
+  onRemoveAttachment,
+  savedConversations = [],
+  onLoadConversation,
+  onViewAllSaved,
+  archivedCount = 0
 }: ChatFooterProps) {
   const [showFooterMenu, setShowFooterMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="border-t border-border p-2 md:p-3 shrink-0 space-y-2">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          toast.success(`${files.length} file(s) attached`);
+          e.target.value = '';
+        }}
+      />
+      
+      {/* Attachments Preview */}
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {attachments.map((att, idx) => (
+            <div key={idx} className="flex items-center gap-2 bg-muted rounded px-2 py-1 text-xs">
+              {att.type.startsWith('image/') ? <ImageIcon className="h-3 w-3" /> : <Paperclip className="h-3 w-3" />}
+              <span className="truncate max-w-[100px]">{att.name}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0"
+                onClick={() => onRemoveAttachment?.(idx)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
       {/* Control Buttons Row */}
       <div className="flex items-center gap-1 md:gap-2 justify-center flex-wrap">
           {/* Hamburger Menu */}
@@ -103,7 +165,9 @@ export function ChatFooter({
                   </button>
                   <button
                     onClick={() => {
-                      onClearChat?.();
+                      if (confirm('Are you sure you want to clear this chat?')) {
+                        onClearChat?.();
+                      }
                       setShowFooterMenu(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
@@ -123,7 +187,9 @@ export function ChatFooter({
                   </button>
                   <button
                     onClick={() => {
-                      onDeleteChat?.();
+                      if (confirm('Are you sure you want to delete this chat?')) {
+                        onDeleteChat?.();
+                      }
                       setShowFooterMenu(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left text-red-500"
@@ -131,6 +197,46 @@ export function ChatFooter({
                     <Trash2 className="h-4 w-4" />
                     <span className="text-sm">Delete Chat</span>
                   </button>
+                  
+                  {/* Recent Conversations */}
+                  {savedConversations.length > 0 && (
+                    <div className="border-t border-border">
+                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">RECENT CONVERSATIONS</div>
+                      {savedConversations.slice(0, 3).map((convo) => (
+                        <button
+                          key={convo.id}
+                          onClick={() => {
+                            onLoadConversation?.(convo);
+                            setShowFooterMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          <span className="text-sm truncate">{convo.title}</span>
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          onViewAllSaved?.();
+                          setShowFooterMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-sm">View All Saved</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          toast.info(`Archive (${archivedCount})`);
+                          setShowFooterMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                      >
+                        <Archive className="h-4 w-4" />
+                        <span className="text-sm">Archive ({archivedCount})</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -196,6 +302,16 @@ export function ChatFooter({
                   </div>
                   <button
                     onClick={() => {
+                      onPresetsSettings?.();
+                      setShowSettings(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                  >
+                    <Zap className="h-4 w-4" />
+                    <span className="text-sm">Presets Setting</span>
+                  </button>
+                  <button
+                    onClick={() => {
                       toast.info('Theme settings coming soon');
                       setShowSettings(false);
                     }}
@@ -255,7 +371,7 @@ export function ChatFooter({
         <Button
           variant="outline"
           size="icon"
-          onClick={onAttach}
+          onClick={() => fileInputRef.current?.click()}
           title="Attach files"
           className="shrink-0 h-10 w-10"
         >

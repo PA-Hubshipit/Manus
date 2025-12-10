@@ -1,13 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { Button } from '@/components/ui/button';
 import { Pin, Minus, Maximize2, Minimize2, X } from 'lucide-react';
-import { ChatFooter } from '@/components/ChatFooter';
+import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
 import { PresetsPanel } from './PresetsPanel';
 import { SettingsMenu } from './SettingsMenu';
+import { PresetEditorModal } from './PresetEditorModal';
 import { AI_PROVIDERS } from '@/lib/ai-providers';
 import { toast } from 'sonner';
+
+interface Attachment {
+  name: string;
+  type: string;
+  size: number;
+  file: File;
+}
+
+// Using SavedConvo from ChatFooter to avoid type conflicts
+
+interface CustomPreset {
+  id: string;
+  name: string;
+  description?: string;
+  models: { provider: string; model: string }[];
+  isCustom: boolean;
+}
 
 interface FloatingChatWindowProps {
   id: string;
@@ -37,6 +55,22 @@ export function FloatingChatWindow({
   const [messages, setMessages] = useState<any[]>([]);
   const [conversationTitle, setConversationTitle] = useState(`Chat ${id}`);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [savedConversations, setSavedConversations] = useState<SavedConvo[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<SavedConvo[]>([]);
+  const [showPresetEditor, setShowPresetEditor] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<CustomPreset | null>(null);
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+
+  // Load saved conversations and custom presets from localStorage on mount
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('savedConversations') || '[]');
+    setSavedConversations(saved);
+    const archived = JSON.parse(localStorage.getItem('archivedConversations') || '[]');
+    setArchivedConversations(archived);
+    const presets = JSON.parse(localStorage.getItem('customPresets') || '[]');
+    setCustomPresets(presets);
+  }, []);
 
   const handleDrag = (_e: any, data: { x: number; y: number }) => {
     const newPos = { x: data.x, y: data.y };
@@ -65,16 +99,29 @@ export function FloatingChatWindow({
       id: Date.now(),
       type: 'user',
       content: inputMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachments: attachments.length > 0 ? attachments : undefined
     };
     
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
+    setAttachments([]);
     toast.success('Message sent to ' + selectedModels.length + ' model(s)');
   };
 
-  const handleAttach = () => {
-    toast.info('Attach files coming soon');
+  const handleFileUpload = (files: File[]) => {
+    const newAttachments = files.map(file => ({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      file
+    }));
+    setAttachments([...attachments, ...newAttachments]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+    toast.info('Attachment removed');
   };
 
   const toggleModel = (provider: string, model: string) => {
@@ -129,19 +176,15 @@ export function FloatingChatWindow({
   };
 
   const clearChat = () => {
-    if (window.confirm('Are you sure you want to clear this chat?')) {
-      setMessages([]);
-      setConversationTitle(`Chat ${id}`);
-      toast.success('Chat cleared');
-    }
+    setMessages([]);
+    setConversationTitle(`Chat ${id}`);
+    toast.success('Chat cleared');
   };
 
   const deleteChat = () => {
-    if (window.confirm('Are you sure you want to delete this chat?')) {
-      setMessages([]);
-      setConversationTitle(`Chat ${id}`);
-      toast.success('Chat deleted');
-    }
+    setMessages([]);
+    setConversationTitle(`Chat ${id}`);
+    toast.success('Chat deleted');
   };
 
   const renameChat = () => {
@@ -177,12 +220,54 @@ export function FloatingChatWindow({
   };
 
   const generateSynthesis = () => {
-    if (selectedModels.length === 0) {
-      toast.error('Select models first');
+    if (messages.length === 0) {
+      toast.error('No messages to synthesize');
       return;
     }
-    toast.info('Generating synthesis from ' + selectedModels.length + ' models...');
-    // TODO: Implement actual synthesis generation
+    
+    const aiResponses = messages.filter(m => m.type === 'assistant');
+    if (aiResponses.length < 2) {
+      toast.error('Need at least 2 AI responses to synthesize');
+      return;
+    }
+    
+    const synthesis = {
+      id: Date.now(),
+      type: 'assistant',
+      content: `**Synthesis of ${aiResponses.length} responses:**\n\n${aiResponses.map(r => r.content).join('\n\n---\n\n')}`,
+      model: 'Synthesis',
+      timestamp: new Date()
+    };
+    
+    setMessages([...messages, synthesis]);
+    toast.success('Synthesis generated');
+  };
+
+  const loadConversation = (convo: SavedConvo) => {
+    setMessages(convo.messages || []);
+    setConversationTitle(convo.title);
+    setSelectedModels(convo.models || []);
+    toast.success(`Loaded: ${convo.title}`);
+  };
+
+  const viewAllSaved = () => {
+    toast.info('View All Saved coming soon');
+  };
+
+  const openPresetsSettings = () => {
+    setShowPresetEditor(true);
+    setEditingPreset(null);
+  };
+
+  const savePreset = (preset: CustomPreset) => {
+    const updated = editingPreset
+      ? customPresets.map(p => p.id === preset.id ? preset : p)
+      : [...customPresets, preset];
+    
+    setCustomPresets(updated);
+    localStorage.setItem('customPresets', JSON.stringify(updated));
+    setShowPresetEditor(false);
+    setEditingPreset(null);
   };
 
   // Calculate window dimensions
@@ -204,6 +289,7 @@ export function FloatingChatWindow({
   }
 
   return (
+    <>
     <Draggable
       disabled={isPinned || isMaximized}
       position={isPinned || isMaximized ? { x: 0, y: 0 } : position}
@@ -314,6 +400,7 @@ export function FloatingChatWindow({
                 toast.info(showAnalytics ? 'Analytics hidden' : 'Analytics shown');
               }}
               onExportData={exportConversation}
+              onPresetsSettings={openPresetsSettings}
               onSettingsClick={() => setShowSettings(!showSettings)}
               onSummarizerClick={generateSynthesis}
               messagesCount={messages.length}
@@ -324,12 +411,30 @@ export function FloatingChatWindow({
               inputMessage={inputMessage}
               onInputChange={setInputMessage}
               onSend={handleSend}
-              onAttach={handleAttach}
+              onAttach={() => {}}
               isLoading={isLoading}
+              attachments={attachments}
+              onRemoveAttachment={removeAttachment}
+              savedConversations={savedConversations}
+              onLoadConversation={loadConversation}
+              onViewAllSaved={viewAllSaved}
+              archivedCount={archivedConversations.length}
             />
           </>
         )}
       </div>
     </Draggable>
+    
+    {/* Preset Editor Modal */}
+    <PresetEditorModal
+      isOpen={showPresetEditor}
+      onClose={() => {
+        setShowPresetEditor(false);
+        setEditingPreset(null);
+      }}
+      editingPreset={editingPreset}
+      onSave={savePreset}
+    />
+    </>
   );
 }
