@@ -44,7 +44,8 @@ export function FloatingChatWindow({
     <Draggable
       key={`draggable-${isPinned}-${isMaximized}`}
       disabled={isPinned || isMaximized}
-      position={position}
+      position={isPinned || isMaximized ? undefined : position}
+      defaultPosition={isPinned || isMaximized ? position : undefined}
       onDrag={handleDrag}
       handle=".drag-handle"
       bounds="parent"
@@ -57,8 +58,8 @@ export function FloatingChatWindow({
           zIndex: 1000,
           ...(!isMaximized && !isMinimized ? { 
             maxWidth: '90vw', 
-            height: 'min(500px, 70vh)',
-            maxHeight: '70vh'
+            height: 'min(450px, 60vh)',
+            maxHeight: '60vh'
           } : {})
         }}
       >
