@@ -80,9 +80,7 @@ export function ChatFooter({
       </div>
       
       {/* Control Buttons Row */}
-      <div className="flex items-center gap-1 md:gap-2 justify-between">
-        {/* Left side controls */}
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 md:gap-2 justify-center flex-wrap">
           {/* Hamburger Menu */}
           <div className="relative">
             <Button
@@ -167,10 +165,6 @@ export function ChatFooter({
           >
             <Sparkles className="h-3.5 w-3.5" />
           </Button>
-        </div>
-        
-        {/* Right side controls */}
-        <div className="flex items-center gap-1">
           {/* Settings Icon */}
           <div className="relative">
             <Button
@@ -239,7 +233,6 @@ export function ChatFooter({
           >
             Presets
           </Button>
-        </div>
       </div>
     </div>
   );
