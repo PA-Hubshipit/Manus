@@ -22,6 +22,8 @@ export function FloatingChatWindow({
   const [isPinned, setIsPinned] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleDrag = (_e: any, data: { x: number; y: number }) => {
     const newPos = { x: data.x, y: data.y };
@@ -40,6 +42,17 @@ export function FloatingChatWindow({
 
   const toggleMaximize = () => {
     setIsMaximized(!isMaximized);
+  };
+
+  const handleSend = () => {
+    if (!inputMessage.trim()) return;
+    toast.info('Sending message: ' + inputMessage);
+    // TODO: Implement actual message sending
+    setInputMessage('');
+  };
+
+  const handleAttach = () => {
+    toast.info('Attach files coming soon');
   };
 
   // Calculate window dimensions
@@ -140,6 +153,11 @@ export function FloatingChatWindow({
               onNewChat={() => toast.info('New chat coming soon')}
               onSave={() => toast.info('Save coming soon')}
               onSettingsClick={() => {}}
+              inputMessage={inputMessage}
+              onInputChange={setInputMessage}
+              onSend={handleSend}
+              onAttach={handleAttach}
+              isLoading={isLoading}
             />
           </>
         )}
