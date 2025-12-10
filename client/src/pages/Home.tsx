@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -169,6 +170,7 @@ interface SavedConversation {
 }
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -824,6 +826,13 @@ export default function Home() {
                         onClick={() => {
                           setCurrentMode(mode as any);
                           setShowModeMenu(false);
+                          if (mode === 'Chat') {
+                            setLocation('/chat');
+                          } else if (mode === 'Conversation') {
+                            setLocation('/conversation');
+                          } else if (mode === 'Empty') {
+                            setLocation('/empty');
+                          }
                           toast.info(`Switched to ${mode} mode`);
                         }}
                         className={`w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors ${

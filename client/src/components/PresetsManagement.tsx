@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -52,6 +52,15 @@ export function PresetsManagement({
   const [presetName, setPresetName] = useState('');
   const [presetDescription, setPresetDescription] = useState('');
   const [presetModels, setPresetModels] = useState<string[]>([]);
+
+  // Sync local state when props change
+  useEffect(() => {
+    setLocalCustomPresets(customPresets);
+  }, [customPresets]);
+
+  useEffect(() => {
+    setLocalDefaultModels(defaultModels);
+  }, [defaultModels]);
 
   const handleCreatePreset = () => {
     setIsCreating(true);
