@@ -10,7 +10,7 @@ import { PresetEditorModal } from './PresetEditorModal';
 import { PresetsManagementModal, CustomPreset } from './PresetsManagementModal';
 import { RenameChatDialog } from './RenameChatDialog';
 import { AnalyticsPanel } from './AnalyticsPanel';
-import { AI_PROVIDERS } from '@/lib/ai-providers';
+import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
 import { toast } from 'sonner';
 
 interface Attachment {
@@ -61,6 +61,7 @@ export function FloatingChatWindow({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState('');
   const [showPresetsManagement, setShowPresetsManagement] = useState(false);
+  const [defaultModels, setDefaultModels] = useState<string[]>([]);
 
   // Load saved conversations and custom presets from localStorage on mount
   useEffect(() => {
@@ -573,13 +574,23 @@ export function FloatingChatWindow({
     />
     
     {/* Presets Management Modal */}
-    <PresetsManagementModal
-      isOpen={showPresetsManagement}
-      onClose={() => setShowPresetsManagement(false)}
-      customPresets={customPresets}
-      onSavePreset={savePreset}
-      editingPreset={editingPreset}
-    />
+    {showPresetsManagement && (
+      <PresetsManagementModal
+        AI_PROVIDERS={AI_PROVIDERS}
+        customPresets={customPresets}
+        builtInPresets={MODEL_PRESETS}
+        defaultModels={defaultModels}
+        onSaveCustomPresets={(presets) => {
+          setCustomPresets(presets);
+          localStorage.setItem('customPresets', JSON.stringify(presets));
+        }}
+        onSaveDefaultModels={(models) => {
+          setDefaultModels(models);
+          localStorage.setItem('defaultModels', JSON.stringify(models));
+        }}
+        onClose={() => setShowPresetsManagement(false)}
+      />
+    )}
     
     {/* Rename Chat Dialog */}
     <RenameChatDialog

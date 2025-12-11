@@ -1,179 +1,399 @@
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, Zap } from 'lucide-react';
-import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { X, Plus, Edit, Trash2, Copy, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { AI_PROVIDERS } from '@/lib/ai-providers';
-
-interface SelectedModel {
-  provider: string;
-  model: string;
-}
 
 export interface CustomPreset {
   id: string;
   name: string;
   description: string;
-  models: SelectedModel[];
-  isCustom: boolean;
+  models: string[];
+  type: 'custom';
 }
 
-interface PresetsManagementModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface BuiltInPreset {
+  name: string;
+  models: string[];
+}
+
+interface PresetsManagementProps {
+  AI_PROVIDERS: Record<string, { name: string; models: string[]; color: string }>;
   customPresets: CustomPreset[];
-  onSavePreset: (preset: CustomPreset) => void;
-  editingPreset?: CustomPreset | null;
+  builtInPresets: Record<string, BuiltInPreset>;
+  defaultModels: string[];
+  onSaveCustomPresets: (presets: CustomPreset[]) => void;
+  onSaveDefaultModels: (models: string[]) => void;
+  onClose: () => void;
 }
 
 export function PresetsManagementModal({
-  isOpen,
-  onClose,
+  AI_PROVIDERS,
   customPresets,
-  onSavePreset,
-  editingPreset
-}: PresetsManagementModalProps) {
-  const [presetName, setPresetName] = useState(editingPreset?.name || '');
-  const [presetDescription, setPresetDescription] = useState(editingPreset?.description || '');
-  const [selectedModels, setSelectedModels] = useState<SelectedModel[]>(editingPreset?.models || []);
+  builtInPresets,
+  defaultModels,
+  onSaveCustomPresets,
+  onSaveDefaultModels,
+  onClose,
+}: PresetsManagementProps) {
+  const [activeTab, setActiveTab] = useState<'presets' | 'defaults'>('presets');
+  const [localCustomPresets, setLocalCustomPresets] = useState<CustomPreset[]>(customPresets);
+  const [localDefaultModels, setLocalDefaultModels] = useState<string[]>(defaultModels);
+  const [editingPreset, setEditingPreset] = useState<CustomPreset | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [presetDescription, setPresetDescription] = useState('');
+  const [presetModels, setPresetModels] = useState<string[]>([]);
 
-  if (!isOpen) return null;
+  // Sync local state when props change
+  useEffect(() => {
+    setLocalCustomPresets(customPresets);
+  }, [customPresets]);
 
-  const toggleModel = (provider: string, model: string) => {
-    const exists = selectedModels.some(m => m.provider === provider && m.model === model);
-    if (exists) {
-      setSelectedModels(selectedModels.filter(m => !(m.provider === provider && m.model === model)));
-    } else {
-      setSelectedModels([...selectedModels, { provider, model }]);
-    }
+  useEffect(() => {
+    setLocalDefaultModels(defaultModels);
+  }, [defaultModels]);
+
+  const handleCreatePreset = () => {
+    setIsCreating(true);
+    setEditingPreset(null);
+    setPresetName('');
+    setPresetDescription('');
+    setPresetModels([]);
   };
 
-  const isModelSelected = (provider: string, model: string) => {
-    return selectedModels.some(m => m.provider === provider && m.model === model);
+  const handleEditPreset = (preset: CustomPreset) => {
+    console.log('Editing preset:', preset);
+    setEditingPreset(preset);
+    setIsCreating(false);
+    setPresetName(preset.name);
+    setPresetDescription(preset.description);
+    setPresetModels([...preset.models]); // Create a new array copy
+    console.log('Preset models loaded:', preset.models);
   };
 
-  const handleSave = () => {
+  const handleSavePreset = () => {
     if (!presetName.trim()) {
-      toast.error('Preset name required');
+      toast.error('Please enter a preset name');
       return;
     }
-    if (selectedModels.length === 0) {
-      toast.error('Select at least one model');
+    if (presetModels.length === 0) {
+      toast.error('Please select at least one model');
       return;
     }
 
-    const preset: CustomPreset = {
-      id: editingPreset?.id || Date.now().toString(),
-      name: presetName,
-      description: presetDescription,
-      models: selectedModels,
-      isCustom: true
+    console.log('Saving preset with models:', presetModels);
+
+    if (editingPreset) {
+      // Update existing preset
+      const updated = localCustomPresets.map(p =>
+        p.id === editingPreset.id
+          ? { ...p, name: presetName, description: presetDescription, models: [...presetModels] }
+          : p
+      );
+      console.log('Updated presets:', updated);
+      setLocalCustomPresets(updated);
+      toast.success('Preset updated');
+    } else {
+      // Create new preset
+      const newPreset: CustomPreset = {
+        id: Date.now().toString(),
+        name: presetName,
+        description: presetDescription,
+        models: presetModels,
+        type: 'custom',
+      };
+      setLocalCustomPresets([...localCustomPresets, newPreset]);
+      toast.success('Preset created');
+    }
+
+    setIsCreating(false);
+    setEditingPreset(null);
+    setPresetName('');
+    setPresetDescription('');
+    setPresetModels([]);
+  };
+
+  const handleDeletePreset = (id: string) => {
+    setLocalCustomPresets(localCustomPresets.filter(p => p.id !== id));
+    toast.success('Preset deleted');
+  };
+
+  const handleDuplicatePreset = (preset: CustomPreset | BuiltInPreset, isBuiltIn: boolean) => {
+    const newPreset: CustomPreset = {
+      id: Date.now().toString(),
+      name: `${preset.name} (Copy)`,
+      description: isBuiltIn ? '' : (preset as CustomPreset).description,
+      models: [...preset.models],
+      type: 'custom',
     };
+    setLocalCustomPresets([...localCustomPresets, newPreset]);
+    toast.success('Preset duplicated');
+  };
 
-    onSavePreset(preset);
-    toast.success(editingPreset ? 'Preset updated' : 'Preset created');
+  const togglePresetModel = (modelKey: string) => {
+    setPresetModels(prev =>
+      prev.includes(modelKey)
+        ? prev.filter(m => m !== modelKey)
+        : [...prev, modelKey]
+    );
+  };
+
+  const toggleDefaultModel = (modelKey: string) => {
+    setLocalDefaultModels(prev =>
+      prev.includes(modelKey)
+        ? prev.filter(m => m !== modelKey)
+        : [...prev, modelKey]
+    );
+  };
+
+  const handleSaveAll = () => {
+    console.log('Saving all changes. Custom presets:', localCustomPresets);
+    onSaveCustomPresets(localCustomPresets);
+    onSaveDefaultModels(localDefaultModels);
+    toast.success('All changes saved');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-background border border-border rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5" />
-            <h2 className="text-lg font-semibold">
-              {editingPreset ? 'Edit Preset' : 'Create Preset'}
-            </h2>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
+          <h2 className="text-xl font-semibold">Presets Management</h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
           </Button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setActiveTab('presets')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'presets'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Presets
+          </button>
+          <button
+            onClick={() => setActiveTab('defaults')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'defaults'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Default Models
+          </button>
+        </div>
+
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Preset Name */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Preset Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              placeholder="Enter preset name"
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Description (Optional)
-            </label>
-            <textarea
-              value={presetDescription}
-              onChange={(e) => setPresetDescription(e.target.value)}
-              placeholder="Brief description of this preset's purpose"
-              rows={3}
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm resize-none"
-            />
-          </div>
-
-          {/* Select Models */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Select Models <span className="text-red-500">*</span>
-            </label>
-            <div className="space-y-3">
-              {Object.values(AI_PROVIDERS).map((provider: any) => (
-                <div key={provider.name} className="border border-border rounded-md p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: provider.color }}
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeTab === 'presets' && (
+            <div className="space-y-4">
+              {/* Create/Edit Form */}
+              {(isCreating || editingPreset) && (
+                <div className="border border-border rounded-lg p-4 space-y-4">
+                  <h3 className="font-semibold">
+                    {editingPreset ? 'Edit Preset' : 'Create New Preset'}
+                  </h3>
+                  
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Preset Name</label>
+                    <Input
+                      value={presetName}
+                      onChange={(e) => setPresetName(e.target.value)}
+                      placeholder="e.g., My Coding Team"
                     />
-                    <span className="font-medium text-sm">{provider.name}</span>
                   </div>
-                  <div className="space-y-1 pl-5">
-                    {provider.models.map((model: string) => (
-                      <label
-                        key={model}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-accent/50 p-1 rounded"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isModelSelected(provider.name, model)}
-                          onChange={() => toggleModel(provider.name, model)}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm">{model}</span>
-                      </label>
-                    ))}
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Description (Optional)</label>
+                    <Input
+                      value={presetDescription}
+                      onChange={(e) => setPresetDescription(e.target.value)}
+                      placeholder="Brief description of this preset"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Select Models</label>
+                    <div className="border border-border rounded-lg p-3 max-h-60 overflow-y-auto space-y-3">
+                      {Object.entries(AI_PROVIDERS).map(([providerKey, provider]) => (
+                        <div key={providerKey}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`w-2 h-2 rounded-full ${provider.color}`} />
+                            <span className="font-medium text-sm">{provider.name}</span>
+                          </div>
+                          <div className="ml-4 space-y-1">
+                            {provider.models.map(model => {
+                              const modelKey = `${providerKey}:${model}`;
+                              return (
+                                <label
+                                  key={modelKey}
+                                  className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                                >
+                                  <Checkbox
+                                    checked={presetModels.includes(modelKey)}
+                                    onCheckedChange={() => togglePresetModel(modelKey)}
+                                  />
+                                  <span className="text-sm">{model}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleSavePreset}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Preset
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsCreating(false);
+                        setEditingPreset(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
 
-          {/* Selected Models Summary */}
-          {selectedModels.length > 0 && (
-            <div className="bg-muted rounded-md p-3">
-              <p className="text-sm font-medium mb-2">
-                Selected: {selectedModels.length} model{selectedModels.length !== 1 ? 's' : ''}
+              {/* Create Button */}
+              {!isCreating && !editingPreset && (
+                <Button onClick={handleCreatePreset}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Preset
+                </Button>
+              )}
+
+              {/* Built-in Presets */}
+              <div>
+                <h3 className="font-semibold mb-3">Built-in Presets</h3>
+                <div className="space-y-2">
+                  {Object.entries(builtInPresets).map(([key, preset]) => (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between p-3 border border-border rounded-lg"
+                    >
+                      <div>
+                        <div className="font-medium">{preset.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {preset.models.length} models
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDuplicatePreset(preset, true)}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Presets */}
+              <div>
+                <h3 className="font-semibold mb-3">Custom Presets</h3>
+                {localCustomPresets.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No custom presets yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {localCustomPresets.map(preset => (
+                      <div
+                        key={preset.id}
+                        className="flex items-center justify-between p-3 border border-border rounded-lg"
+                      >
+                        <div>
+                          <div className="font-medium">{preset.name}</div>
+                          {preset.description && (
+                            <div className="text-sm text-muted-foreground">{preset.description}</div>
+                          )}
+                          <div className="text-sm text-muted-foreground">
+                            {preset.models.length} models
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditPreset(preset)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicatePreset(preset, false)}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeletePreset(preset.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'defaults' && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Select models to be automatically added when starting a new chat
               </p>
-              <div className="flex flex-wrap gap-2">
-                {selectedModels.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="text-xs bg-background px-2 py-1 rounded border border-border"
-                  >
-                    {m.provider} - {m.model}
+
+              <div className="border border-border rounded-lg p-3 space-y-3">
+                {Object.entries(AI_PROVIDERS).map(([providerKey, provider]) => (
+                  <div key={providerKey}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${provider.color}`} />
+                      <span className="font-medium text-sm">{provider.name}</span>
+                    </div>
+                    <div className="ml-4 space-y-1">
+                      {provider.models.map(model => {
+                        const modelKey = `${providerKey}:${model}`;
+                        return (
+                          <label
+                            key={modelKey}
+                            className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={localDefaultModels.includes(modelKey)}
+                              onCheckedChange={() => toggleDefaultModel(modelKey)}
+                            />
+                            <span className="text-sm">{model}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -183,16 +403,11 @@ export function PresetsManagementModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-          >
-            {editingPreset ? 'Update Preset' : 'Create Preset'}
+          <Button onClick={handleSaveAll}>
+            Save All Changes
           </Button>
         </div>
       </div>

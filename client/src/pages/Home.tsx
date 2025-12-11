@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CollapsibleMenuGroup } from '@/components/CollapsibleMenuGroup';
-import { PresetsManagement } from '@/components/PresetsManagement';
+import { PresetsManagementModal } from '@/components/PresetsManagementModal';
 import { 
   Send, Plus, X, Menu, Save, Download, Star, ThumbsUp, ThumbsDown, 
   MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight, Settings, Archive, Edit
@@ -1757,7 +1757,7 @@ export default function Home() {
 
       {/* Presets Management Modal */}
       {showPresetsManagement && (
-        <PresetsManagement
+        <PresetsManagementModal
           AI_PROVIDERS={AI_PROVIDERS}
           customPresets={customPresets}
           builtInPresets={MODEL_PRESETS}

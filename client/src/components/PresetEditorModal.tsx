@@ -6,10 +6,7 @@ import { toast } from 'sonner';
 import { AI_PROVIDERS } from '@/lib/ai-providers';
 import { CustomPreset } from './PresetsManagementModal';
 
-interface SelectedModel {
-  provider: string;
-  model: string;
-}
+
 interface PresetEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,13 +17,13 @@ interface PresetEditorModalProps {
 export function PresetEditorModal({ isOpen, onClose, editingPreset, onSave }: PresetEditorModalProps) {
   const [presetName, setPresetName] = useState('');
   const [presetDescription, setPresetDescription] = useState('');
-  const [selectedModels, setSelectedModels] = useState<SelectedModel[]>([]);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   useEffect(() => {
     if (editingPreset) {
       setPresetName(editingPreset.name);
       setPresetDescription(editingPreset.description || '');
-      setSelectedModels(editingPreset.models);
+      setSelectedModels(editingPreset.models || []);
     } else {
       setPresetName('');
       setPresetDescription('');
@@ -49,7 +46,7 @@ export function PresetEditorModal({ isOpen, onClose, editingPreset, onSave }: Pr
       name: presetName,
       description: presetDescription,
       models: selectedModels,
-      isCustom: true
+      type: 'custom'
     };
 
     onSave(preset);
@@ -57,16 +54,18 @@ export function PresetEditorModal({ isOpen, onClose, editingPreset, onSave }: Pr
   };
 
   const toggleModel = (provider: string, model: string) => {
-    const exists = selectedModels.some(m => m.provider === provider && m.model === model);
+    const modelKey = `${provider}:${model}`;
+    const exists = selectedModels.includes(modelKey);
     if (exists) {
-      setSelectedModels(selectedModels.filter(m => !(m.provider === provider && m.model === model)));
+      setSelectedModels(selectedModels.filter(m => m !== modelKey));
     } else {
-      setSelectedModels([...selectedModels, { provider, model }]);
+      setSelectedModels([...selectedModels, modelKey]);
     }
   };
 
   const isModelSelected = (provider: string, model: string) => {
-    return selectedModels.some(m => m.provider === provider && m.model === model);
+    const modelKey = `${provider}:${model}`;
+    return selectedModels.includes(modelKey);
   };
 
   if (!isOpen) return null;
