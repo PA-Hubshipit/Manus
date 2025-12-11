@@ -55,3 +55,40 @@
 - [ ] Implement auto-growing textarea in ChatFooter
   - Textarea should start at single line height
   - Auto-expand as user types (up to reasonable max height)
+
+
+---
+
+# Quick Presets Panel Enhancement Tasks
+
+## Phase 1: Locate and analyze the Quick Presets component code
+- [x] Find Quick Presets component (PresetsPanel.tsx)
+- [x] Understand current structure and props
+
+## Phase 2: Add New button to import presets from Presets Management modal
+- [x] Add "+ New" button in top-right of Quick Presets header
+- [x] Implement handler to open Presets Management modal
+- [x] Pass modal open handler as prop to PresetsPanel
+
+## Phase 3: Add Edit and Delete icons with functionality to each preset
+- [x] Add Edit (pencil) icon button on each preset
+- [x] Add Delete (trash) icon button on each preset
+- [x] Implement quick edit modal/dialog for adding/removing models
+- [x] Implement delete confirmation dialog
+- [x] Add handlers for edit and delete operations
+- [x] Update localStorage when presets are modified
+
+## Phase 4: Implement inline rename functionality for preset names
+- [x] Make preset name clickable/editable
+- [x] Add inline editing state
+- [x] Implement rename handler
+- [x] Update localStorage when preset is renamed
+- [x] Show visual feedback during rename
+
+## Phase 5: Test all features and create checkpoint
+- [x] Test "+ New" button opens Presets Management modal
+- [x] Test Edit icon opens quick edit dialog
+- [x] Test Delete icon with confirmation
+- [x] Test inline rename functionality
+- [x] Verify all changes persist to localStorage
+- [ ] Create final checkpoint

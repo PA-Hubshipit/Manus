@@ -312,6 +312,28 @@ export function FloatingChatWindow({
     setEditingPreset(null);
   };
 
+  // Quick Presets panel handlers
+  const handleQuickEditPreset = (preset: CustomPreset, index: number) => {
+    setEditingPreset(preset);
+    setShowPresetEditor(true);
+  };
+
+  const handleQuickDeletePreset = (index: number) => {
+    if (confirm('Are you sure you want to delete this preset?')) {
+      const updated = customPresets.filter((_, i) => i !== index);
+      setCustomPresets(updated);
+      localStorage.setItem('customPresets', JSON.stringify(updated));
+    }
+  };
+
+  const handleQuickRenamePreset = (index: number, newName: string) => {
+    const updated = customPresets.map((preset, i) => 
+      i === index ? { ...preset, name: newName } : preset
+    );
+    setCustomPresets(updated);
+    localStorage.setItem('customPresets', JSON.stringify(updated));
+  };
+
   // Calculate window dimensions
   const windowStyle: React.CSSProperties = {
     zIndex: 1000,
@@ -453,7 +475,14 @@ export function FloatingChatWindow({
 
             {/* Presets Panel */}
             {showPresets && (
-              <PresetsPanel onApplyPreset={applyPreset} customPresets={customPresets} />
+              <PresetsPanel 
+                onApplyPreset={applyPreset} 
+                customPresets={customPresets}
+                onOpenPresetsManagement={openPresetsSettings}
+                onEditPreset={handleQuickEditPreset}
+                onDeletePreset={handleQuickDeletePreset}
+                onRenamePreset={handleQuickRenamePreset}
+              />
             )}
 
             <div className="flex-1 p-4 overflow-auto min-h-0">
