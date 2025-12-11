@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus, Edit, Trash2, Copy, Save, Download, Upload } from 'lucide-react';
+import { X, Plus, Edit, Trash2, Copy, Save, Download, Upload, Search, GripVertical, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface CustomPreset {
@@ -18,6 +19,7 @@ export interface CustomPreset {
   description: string;
   models: string[];
   type: 'custom';
+  tags?: string[];
 }
 
 interface BuiltInPreset {
@@ -56,6 +58,10 @@ export function PresetsManagementModal({
   const [selectedModel, setSelectedModel] = useState('');
   const [openProviders, setOpenProviders] = useState<Record<string, boolean>>({});
   const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [presetTags, setPresetTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   // Sync local state when props change
   useEffect(() => {
@@ -72,6 +78,7 @@ export function PresetsManagementModal({
     setPresetName('');
     setPresetDescription('');
     setPresetModels([]);
+    setPresetTags([]);
   };
 
   const handleEditPreset = (preset: CustomPreset) => {
@@ -80,6 +87,7 @@ export function PresetsManagementModal({
     setPresetName(preset.name);
     setPresetDescription(preset.description);
     setPresetModels([...preset.models]); // Create a new array copy
+    setPresetTags(preset.tags || []);
     
     // Scroll to top to show the edit form
     setTimeout(() => {
@@ -106,7 +114,7 @@ export function PresetsManagementModal({
       // Update existing preset
       const updated = localCustomPresets.map(p =>
         p.id === editingPreset.id
-          ? { ...p, name: presetName, description: presetDescription, models: [...presetModels] }
+          ? { ...p, name: presetName, description: presetDescription, models: [...presetModels], tags: presetTags }
           : p
       );
       console.log('Updated presets:', updated);
@@ -120,6 +128,7 @@ export function PresetsManagementModal({
         description: presetDescription,
         models: presetModels,
         type: 'custom',
+        tags: presetTags,
       };
       setLocalCustomPresets([...localCustomPresets, newPreset]);
       toast.success('Preset created');
@@ -127,6 +136,7 @@ export function PresetsManagementModal({
 
     setIsCreating(false);
     setEditingPreset(null);
+    setPresetTags([]);
     setPresetName('');
     setPresetDescription('');
     setPresetModels([]);
@@ -222,6 +232,56 @@ export function PresetsManagementModal({
     toast.success('All changes saved');
     onClose();
   };
+
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(localCustomPresets);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setLocalCustomPresets(items);
+    toast.success('Preset reordered');
+  };
+
+  const handleAddTag = () => {
+    if (!newTag.trim()) return;
+    if (presetTags.includes(newTag.trim())) {
+      toast.error('Tag already exists');
+      return;
+    }
+    setPresetTags([...presetTags, newTag.trim()]);
+    setNewTag('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setPresetTags(presetTags.filter(t => t !== tag));
+  };
+
+  // Get all unique tags from all presets
+  const allTags = Array.from(
+    new Set(
+      localCustomPresets.flatMap(p => p.tags || [])
+    )
+  );
+
+  // Filter presets based on search query and selected tag
+  const filteredCustomPresets = localCustomPresets.filter(preset => {
+    const matchesSearch = searchQuery === '' || 
+      preset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      preset.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      preset.models.some(m => m.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesTag = !selectedTagFilter || (preset.tags && preset.tags.includes(selectedTagFilter));
+    
+    return matchesSearch && matchesTag;
+  });
+
+  const filteredBuiltInPresets = Object.entries(builtInPresets).filter(([key, preset]) => {
+    return searchQuery === '' ||
+      preset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      preset.models.some(m => m.toLowerCase().includes(searchQuery.toLowerCase()));
+  });
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
@@ -388,6 +448,55 @@ export function PresetsManagementModal({
                     </div>
                   </div>
 
+                  {/* Tags */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                      <Tag className="h-4 w-4" />
+                      Tags (Optional)
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newTag}
+                          onChange={(e) => setNewTag(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddTag();
+                            }
+                          }}
+                          placeholder="e.g., Work, Personal, Coding"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddTag}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {presetTags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {presetTags.map((tag) => (
+                            <div
+                              key={tag}
+                              className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs"
+                            >
+                              <span>{tag}</span>
+                              <button
+                                onClick={() => handleRemoveTag(tag)}
+                                className="hover:bg-primary/20 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <Button onClick={handleSavePreset}>
                       <Save className="h-4 w-4 mr-2" />
@@ -412,6 +521,49 @@ export function PresetsManagementModal({
                   <Plus className="h-4 w-4 mr-2" />
                   Create New Preset
                 </Button>
+              )}
+
+              {/* Search and Filter */}
+              {!isCreating && !editingPreset && (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search presets by name, description, or model..."
+                      className="pl-10"
+                    />
+                  </div>
+                  {allTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="text-sm text-muted-foreground">Filter by tag:</span>
+                      <button
+                        onClick={() => setSelectedTagFilter(null)}
+                        className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                          !selectedTagFilter
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-accent hover:bg-accent/80'
+                        }`}
+                      >
+                        All
+                      </button>
+                      {allTags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => setSelectedTagFilter(tag)}
+                          className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                            selectedTagFilter === tag
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-accent hover:bg-accent/80'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Export/Import */}
@@ -440,7 +592,7 @@ export function PresetsManagementModal({
               <div>
                 <h3 className="font-semibold mb-3">Built-in Presets</h3>
                 <div className="space-y-2">
-                  {Object.entries(builtInPresets).map(([key, preset]) => (
+                  {filteredBuiltInPresets.map(([key, preset]) => (
                     <div
                       key={key}
                       className="flex items-center justify-between p-3 border border-border rounded-lg"
@@ -467,52 +619,90 @@ export function PresetsManagementModal({
               {/* Custom Presets */}
               <div>
                 <h3 className="font-semibold mb-3">Custom Presets</h3>
-                {localCustomPresets.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No custom presets yet</p>
+                {filteredCustomPresets.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    {localCustomPresets.length === 0 ? 'No custom presets yet' : 'No presets match your search'}
+                  </p>
                 ) : (
-                  <div className="space-y-2">
-                    {localCustomPresets.map(preset => (
-                      <div
-                        key={preset.id}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="font-medium">{preset.name}</div>
-                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                              {preset.models.length}
-                            </span>
-                          </div>
-                          {preset.description && (
-                            <div className="text-sm text-muted-foreground">{preset.description}</div>
-                          )}
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="custom-presets">
+                      {(provided) => (
+                        <div
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          className="space-y-2"
+                        >
+                          {filteredCustomPresets.map((preset, index) => (
+                            <Draggable key={preset.id} draggableId={preset.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  className={`flex items-center gap-2 p-3 border border-border rounded-lg transition-colors ${
+                                    snapshot.isDragging ? 'bg-accent shadow-lg' : ''
+                                  }`}
+                                >
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="cursor-grab active:cursor-grabbing"
+                                  >
+                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <div className="font-medium">{preset.name}</div>
+                                      <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                                        {preset.models.length}
+                                      </span>
+                                      {preset.tags && preset.tags.length > 0 && (
+                                        <div className="flex gap-1 flex-wrap">
+                                          {preset.tags.map((tag) => (
+                                            <span
+                                              key={tag}
+                                              className="px-2 py-0.5 bg-accent text-accent-foreground rounded-full text-xs"
+                                            >
+                                              {tag}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {preset.description && (
+                                      <div className="text-sm text-muted-foreground">{preset.description}</div>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditPreset(preset)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDuplicatePreset(preset, false)}
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeletePreset(preset.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditPreset(preset)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDuplicatePreset(preset, false)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeletePreset(preset.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 )}
               </div>
             </div>
