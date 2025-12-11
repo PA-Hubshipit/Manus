@@ -54,6 +54,7 @@ export function PresetsManagementModal({
   const [presetModels, setPresetModels] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
+  const [openProviders, setOpenProviders] = useState<Record<string, boolean>>({});
 
   // Sync local state when props change
   useEffect(() => {
@@ -442,32 +443,65 @@ export function PresetsManagementModal({
                 Select models to be automatically added when starting a new chat
               </p>
 
-              <div className="border border-border rounded-lg p-3 space-y-3">
-                {Object.entries(AI_PROVIDERS).map(([providerKey, provider]) => (
-                  <div key={providerKey}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-2 h-2 rounded-full ${provider.color}`} />
-                      <span className="font-medium text-sm">{provider.name}</span>
+              <div className="space-y-2">
+                {Object.entries(AI_PROVIDERS).map(([providerKey, provider]) => {
+                  const isOpen = openProviders[providerKey] || false;
+                  const providerModels = provider.models.filter(model => 
+                    localDefaultModels.includes(`${providerKey}:${model}`)
+                  );
+                  const selectedCount = providerModels.length;
+
+                  const toggleProvider = () => {
+                    setOpenProviders(prev => ({
+                      ...prev,
+                      [providerKey]: !prev[providerKey]
+                    }));
+                  };
+
+                  return (
+                    <div key={providerKey} className="border border-border rounded-lg overflow-hidden">
+                      <button
+                        onClick={toggleProvider}
+                        className="w-full flex items-center justify-between p-3 hover:bg-accent transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${provider.color}`} />
+                          <span className="font-medium text-sm">{provider.name}</span>
+                          {selectedCount > 0 && (
+                            <span className="text-xs text-muted-foreground">({selectedCount} selected)</span>
+                          )}
+                        </div>
+                        <svg
+                          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {isOpen && (
+                        <div className="p-3 pt-0 space-y-1">
+                          {provider.models.map(model => {
+                            const modelKey = `${providerKey}:${model}`;
+                            return (
+                              <label
+                                key={modelKey}
+                                className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={localDefaultModels.includes(modelKey)}
+                                  onCheckedChange={() => toggleDefaultModel(modelKey)}
+                                />
+                                <span className="text-sm">{model}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div className="ml-4 space-y-1">
-                      {provider.models.map(model => {
-                        const modelKey = `${providerKey}:${model}`;
-                        return (
-                          <label
-                            key={modelKey}
-                            className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={localDefaultModels.includes(modelKey)}
-                              onCheckedChange={() => toggleDefaultModel(modelKey)}
-                            />
-                            <span className="text-sm">{model}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
