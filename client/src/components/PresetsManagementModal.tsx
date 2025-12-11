@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus, Edit, Trash2, Copy, Save } from 'lucide-react';
+import { X, Plus, Edit, Trash2, Copy, Save, Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface CustomPreset {
@@ -55,6 +55,7 @@ export function PresetsManagementModal({
   const [selectedProvider, setSelectedProvider] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [openProviders, setOpenProviders] = useState<Record<string, boolean>>({});
+  const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null);
 
   // Sync local state when props change
   useEffect(() => {
@@ -132,8 +133,58 @@ export function PresetsManagementModal({
   };
 
   const handleDeletePreset = (id: string) => {
-    setLocalCustomPresets(localCustomPresets.filter(p => p.id !== id));
-    toast.success('Preset deleted');
+    setDeletingPresetId(id);
+  };
+
+  const confirmDeletePreset = () => {
+    if (deletingPresetId) {
+      setLocalCustomPresets(localCustomPresets.filter(p => p.id !== deletingPresetId));
+      toast.success('Preset deleted');
+      setDeletingPresetId(null);
+    }
+  };
+
+  const cancelDeletePreset = () => {
+    setDeletingPresetId(null);
+  };
+
+  const handleExportPresets = () => {
+    const dataStr = JSON.stringify(localCustomPresets, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `presets-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Presets exported');
+  };
+
+  const handleImportPresets = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target?.result as string) as CustomPreset[];
+        // Validate structure
+        if (!Array.isArray(imported)) {
+          toast.error('Invalid preset file format');
+          return;
+        }
+        // Merge with existing presets, avoiding duplicates by ID
+        const existingIds = new Set(localCustomPresets.map(p => p.id));
+        const newPresets = imported.filter(p => !existingIds.has(p.id));
+        setLocalCustomPresets([...localCustomPresets, ...newPresets]);
+        toast.success(`Imported ${newPresets.length} preset(s)`);
+      } catch (error) {
+        toast.error('Failed to import presets');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = '';
   };
 
   const handleDuplicatePreset = (preset: CustomPreset | BuiltInPreset, isBuiltIn: boolean) => {
@@ -363,6 +414,28 @@ export function PresetsManagementModal({
                 </Button>
               )}
 
+              {/* Export/Import */}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={handleExportPresets} className="flex-1">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Presets
+                </Button>
+                <label className="flex-1">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportPresets}
+                    className="hidden"
+                  />
+                  <Button variant="outline" className="w-full" asChild>
+                    <span>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Presets
+                    </span>
+                  </Button>
+                </label>
+              </div>
+
               {/* Built-in Presets */}
               <div>
                 <h3 className="font-semibold mb-3">Built-in Presets</h3>
@@ -372,11 +445,11 @@ export function PresetsManagementModal({
                       key={key}
                       className="flex items-center justify-between p-3 border border-border rounded-lg"
                     >
-                      <div>
+                      <div className="flex items-center gap-2">
                         <div className="font-medium">{preset.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {preset.models.length} models
-                        </div>
+                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                          {preset.models.length}
+                        </span>
                       </div>
                       <Button
                         variant="outline"
@@ -404,13 +477,15 @@ export function PresetsManagementModal({
                         className="flex items-center justify-between p-3 border border-border rounded-lg"
                       >
                         <div>
-                          <div className="font-medium">{preset.name}</div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="font-medium">{preset.name}</div>
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                              {preset.models.length}
+                            </span>
+                          </div>
                           {preset.description && (
                             <div className="text-sm text-muted-foreground">{preset.description}</div>
                           )}
-                          <div className="text-sm text-muted-foreground">
-                            {preset.models.length} models
-                          </div>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -523,6 +598,26 @@ export function PresetsManagementModal({
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deletingPresetId && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+          <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full mx-4 space-y-4">
+            <h3 className="text-lg font-semibold">Delete Preset?</h3>
+            <p className="text-muted-foreground">
+              Are you sure you want to delete this preset? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={cancelDeletePreset}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDeletePreset}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -45,9 +45,12 @@ export function PresetsPanel({ onApplyPreset, customPresets = [] }: PresetsPanel
               variant="outline"
               size="sm"
               onClick={() => onApplyPreset(preset.models)}
-              className="w-full justify-start text-xs"
+              className="w-full justify-between text-xs"
             >
-              {preset.name}
+              <span>{preset.name}</span>
+              <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
+                {preset.models.length}
+              </span>
             </Button>
           ))}
         </div>
