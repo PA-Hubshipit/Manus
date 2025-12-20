@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download, X, Image as ImageIcon, Zap } from 'lucide-react';
+import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download, X, Image as ImageIcon, Zap, Mic, Plug } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -420,9 +420,29 @@ export function ChatFooter({
             placeholder="Select at least one AI model to send a message"
             disabled={selectedModelsCount === 0}
             rows={1}
-            className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full pl-3 pr-16 py-2.5 rounded-md border border-input bg-background text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             style={{ lineHeight: '1.5', height: '40px', minHeight: '40px', maxHeight: '200px', overflowY: 'hidden' }}
           />
+          <div className="absolute right-2 bottom-1.5 flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => toast.info('USER REQUESTED IMMEDIATE FORCE STOP')}
+              title="Voice Input"
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => toast.info('USER REQUESTED IMMEDIATE FORCE STOP')}
+              title="Plugins"
+            >
+              <Plug className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <Button
           onClick={onSend}
