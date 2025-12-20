@@ -454,7 +454,7 @@ export function FloatingChatWindow({
                   e.preventDefault();
                   renameChat();
                 }}
-                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors no-drag select-text"
+                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors select-none"
                 title="Double click to rename"
               >
                 {conversationTitle}
