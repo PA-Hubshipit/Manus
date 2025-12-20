@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { Button } from '@/components/ui/button';
-import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare } from 'lucide-react';
+import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, Edit2 } from 'lucide-react';
 import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
 import { PresetsPanel } from './PresetsPanel';
@@ -433,21 +433,34 @@ export function FloatingChatWindow({
                 onMouseDown={(e) => e.stopPropagation()}
               />
             ) : (
-              <span 
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  renameChat();
-                }}
-                onMouseDown={(e) => {
-                  // Prevent drag start on the title to allow double click
-                  e.stopPropagation();
-                }}
-                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors no-drag select-text"
-                title="Double click to rename"
-              >
-                {conversationTitle}
-              </span>
+              <div className="flex items-center gap-2 min-w-0 group">
+                <span 
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    renameChat();
+                  }}
+                  onMouseDown={(e) => {
+                    // Prevent drag start on the title to allow double click
+                    e.stopPropagation();
+                  }}
+                  className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors no-drag select-text"
+                  title="Double click to rename"
+                >
+                  {conversationTitle}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    renameChat();
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 hover:bg-accent rounded no-drag"
+                  title="Rename chat"
+                >
+                  <Edit2 className="h-3 w-3 text-muted-foreground" />
+                </button>
+              </div>
             )}
           </div>
           
