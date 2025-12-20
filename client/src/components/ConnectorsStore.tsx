@@ -17,7 +17,7 @@ interface ConnectorsStoreProps {
   onClose: () => void;
 }
 
-type View = 'list' | 'add';
+type View = 'list' | 'add' | 'manage';
 type Tab = 'apps' | 'api' | 'mcp';
 
 export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
@@ -212,10 +212,10 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
         className={cn(
           "relative w-full bg-[#1C1C1E] rounded-t-[20px] overflow-hidden transition-transform duration-300 ease-out pointer-events-auto pb-safe flex flex-col",
           isAnimating ? "translate-y-0" : "translate-y-full",
-          currentView === 'add' ? "h-[85vh]" : "max-h-[85vh]"
+          (currentView === 'add' || currentView === 'manage') ? "h-[85vh]" : "max-h-[85vh]"
         )}
       >
-        {currentView === 'list' ? (
+        {currentView === 'list' && (
           // === MAIN LIST VIEW ===
           <>
             {/* Drag Handle */}
@@ -272,7 +272,10 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
                   <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-500" />
                 </button>
                 
-                <button className="w-full flex items-center justify-between py-3.5 px-4 hover:bg-white/5 transition-colors group">
+                <button 
+                  onClick={() => setCurrentView('manage')}
+                  className="w-full flex items-center justify-between py-3.5 px-4 hover:bg-white/5 transition-colors group"
+                >
                   <div className="flex items-center gap-3">
                     <Settings2 className="h-5 w-5 text-zinc-400 group-hover:text-zinc-300" />
                     <span className="text-[15px] font-medium text-zinc-300 group-hover:text-white">Manage connectors</span>
@@ -282,7 +285,9 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
               </div>
             </div>
           </>
-        ) : (
+        )}
+
+        {currentView === 'add' && (
           // === ADD CONNECTORS VIEW ===
           <div className="flex flex-col h-full">
             {/* Header with Close Button */}
@@ -369,6 +374,45 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {currentView === 'manage' && (
+          // === MANAGE CONNECTORS VIEW ===
+          <div className="flex flex-col h-full">
+            {/* Header with Close Button and Add Icon */}
+            <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
+              <button 
+                onClick={() => setCurrentView('list')}
+                className="p-1 -ml-1 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <h2 className="text-lg font-semibold text-white absolute left-1/2 -translate-x-1/2">Connected Apps</h2>
+              <button 
+                onClick={() => setCurrentView('add')}
+                className="p-1 -mr-1 text-zinc-400 hover:text-white transition-colors"
+              >
+                <Plus className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Empty State Content */}
+            <div className="flex flex-col items-center justify-center flex-1 text-center px-8 pb-20">
+              <div className="mb-6 text-zinc-600">
+                <Plug className="h-12 w-12 opacity-50" />
+              </div>
+              <p className="text-sm text-zinc-500 leading-relaxed mb-8 max-w-[280px]">
+                Connect Manus with your everyday apps, APIs and MCPs
+              </p>
+              <Button 
+                onClick={() => setCurrentView('add')}
+                className="bg-white/10 hover:bg-white/20 text-white border-0 h-12 px-6 rounded-xl font-medium"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Add connectors
+              </Button>
             </div>
           </div>
         )}
