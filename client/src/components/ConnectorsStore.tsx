@@ -152,22 +152,24 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-2 px-4 pb-8 pt-2 space-y-1">
-          <button className="w-full flex items-center justify-between py-3 px-2 hover:bg-white/5 rounded-lg transition-colors group">
-            <div className="flex items-center gap-3">
-              <Plus className="h-5 w-5 text-zinc-400 group-hover:text-zinc-300" />
-              <span className="text-[15px] font-medium text-zinc-400 group-hover:text-zinc-300">Add connectors</span>
-            </div>
-            <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-500" />
-          </button>
-          
-          <button className="w-full flex items-center justify-between py-3 px-2 hover:bg-white/5 rounded-lg transition-colors group">
-            <div className="flex items-center gap-3">
-              <Settings2 className="h-5 w-5 text-zinc-400 group-hover:text-zinc-300" />
-              <span className="text-[15px] font-medium text-zinc-400 group-hover:text-zinc-300">Manage connectors</span>
-            </div>
-            <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-500" />
-          </button>
+        <div className="mt-4 px-4 pb-8">
+          <div className="bg-white/5 rounded-xl overflow-hidden">
+            <button className="w-full flex items-center justify-between py-3.5 px-4 hover:bg-white/5 transition-colors group border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <Plus className="h-5 w-5 text-zinc-400 group-hover:text-zinc-300" />
+                <span className="text-[15px] font-medium text-zinc-300 group-hover:text-white">Add connectors</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-500" />
+            </button>
+            
+            <button className="w-full flex items-center justify-between py-3.5 px-4 hover:bg-white/5 transition-colors group">
+              <div className="flex items-center gap-3">
+                <Settings2 className="h-5 w-5 text-zinc-400 group-hover:text-zinc-300" />
+                <span className="text-[15px] font-medium text-zinc-300 group-hover:text-white">Manage connectors</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-zinc-600 group-hover:text-zinc-500" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
