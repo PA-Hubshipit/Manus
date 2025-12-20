@@ -214,9 +214,22 @@ export function FloatingChatWindow({
     };
     
     // Save to localStorage
-    const saved = JSON.parse(localStorage.getItem('savedConversations') || '[]');
+    let saved = JSON.parse(localStorage.getItem('savedConversations') || '[]');
+    let archived = JSON.parse(localStorage.getItem('archivedConversations') || '[]');
+    
     // Add new conversation to the beginning of the array
     saved.unshift(conversation);
+    
+    // If we have more than 3 saved conversations, move the excess to archive
+    if (saved.length > 3) {
+      const toArchive = saved.slice(3);
+      saved = saved.slice(0, 3);
+      archived = [...toArchive, ...archived];
+      
+      localStorage.setItem('archivedConversations', JSON.stringify(archived));
+      setArchivedConversations(archived);
+    }
+    
     localStorage.setItem('savedConversations', JSON.stringify(saved));
     
     // Update state to show in Recent Conversations immediately
