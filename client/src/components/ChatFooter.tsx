@@ -447,48 +447,56 @@ export function ChatFooter({
                 } else {
                   // Start listening
                   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-                    const recognition = new SpeechRecognition();
-                    (window as any).recognition = recognition;
-                    
-                    recognition.continuous = false;
-                    recognition.interimResults = false;
-                    recognition.lang = navigator.language || 'en-US';
-                    
-                    recognition.onstart = () => {
-                      setIsListening(true);
-                      toast.info('Listening...');
-                    };
-                    
-                    recognition.onresult = (event: any) => {
-                      const transcript = event.results[0][0].transcript;
-                      const currentInput = inputMessageRef.current;
-                      onInputChange?.(currentInput + (currentInput ? ' ' : '') + transcript);
-                      setIsListening(false);
-                    };
-                    
-                    recognition.onerror = (event: any) => {
-                      console.error('Speech recognition error', event.error);
-                      setIsListening(false);
-                      if (event.error === 'not-allowed') {
-                        toast.error('Microphone access denied');
-                      } else if (event.error === 'no-speech') {
-                        toast.info('No speech detected');
-                      } else {
-                        toast.error(`Voice input failed: ${event.error}`);
-                      }
-                    };
-                    
-                    recognition.onend = () => {
-                      setIsListening(false);
-                    };
-                    
-                    try {
-                      recognition.start();
-                    } catch (e) {
-                      console.error(e);
-                      toast.error('Failed to start voice input');
-                    }
+                    // Explicitly request permission first
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                      .then(() => {
+                        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                        const recognition = new SpeechRecognition();
+                        (window as any).recognition = recognition;
+                        
+                        recognition.continuous = false;
+                        recognition.interimResults = false;
+                        recognition.lang = navigator.language || 'en-US';
+                        
+                        recognition.onstart = () => {
+                          setIsListening(true);
+                          toast.info('Listening...');
+                        };
+                        
+                        recognition.onresult = (event: any) => {
+                          const transcript = event.results[0][0].transcript;
+                          const currentInput = inputMessageRef.current;
+                          onInputChange?.(currentInput + (currentInput ? ' ' : '') + transcript);
+                          setIsListening(false);
+                        };
+                        
+                        recognition.onerror = (event: any) => {
+                          console.error('Speech recognition error', event.error);
+                          setIsListening(false);
+                          if (event.error === 'not-allowed') {
+                            toast.error('Microphone access denied. Please check browser settings.');
+                          } else if (event.error === 'no-speech') {
+                            toast.info('No speech detected');
+                          } else {
+                            toast.error(`Voice input failed: ${event.error}`);
+                          }
+                        };
+                        
+                        recognition.onend = () => {
+                          setIsListening(false);
+                        };
+                        
+                        try {
+                          recognition.start();
+                        } catch (e) {
+                          console.error(e);
+                          toast.error('Failed to start voice input');
+                        }
+                      })
+                      .catch((err) => {
+                        console.error('Microphone permission denied:', err);
+                        toast.error('Microphone permission denied. Please allow access in browser settings.');
+                      });
                   } else {
                     toast.error('Speech recognition not supported in this browser');
                   }
