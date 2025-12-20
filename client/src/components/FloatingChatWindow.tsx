@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { Button } from '@/components/ui/button';
 import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare } from 'lucide-react';
@@ -62,6 +62,7 @@ export function FloatingChatWindow({
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState('');
+  const lastTapRef = useRef<number>(0);
   const [showPresetsManagement, setShowPresetsManagement] = useState(false);
   const [defaultModels, setDefaultModels] = useState<string[]>([]);
   const [quickPresets, setQuickPresets] = useState<QuickPreset[]>([]);
@@ -389,6 +390,7 @@ export function FloatingChatWindow({
       position={isPinned || isMaximized ? { x: 0, y: 0 } : position}
       onDrag={handleDrag}
       handle=".drag-handle"
+      cancel=".no-drag"
       bounds="parent"
     >
       <div
@@ -435,30 +437,22 @@ export function FloatingChatWindow({
             ) : (
               <span 
                 onClick={(e) => {
-                  e.stopPropagation();
-                  // Custom double-tap detection for mobile
+                  // Custom double-tap detection for mobile using ref
                   const now = Date.now();
-                  const lastTap = parseInt(e.currentTarget.dataset.lastTap || '0');
-                  if (now - lastTap < 300) {
+                  if (lastTapRef.current && (now - lastTapRef.current < 300)) {
                     // Double tap detected
                     e.preventDefault();
+                    e.stopPropagation();
                     renameChat();
+                    lastTapRef.current = 0; // Reset
                   } else {
-                    e.currentTarget.dataset.lastTap = now.toString();
+                    lastTapRef.current = now;
                   }
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   renameChat();
-                }}
-                onMouseDown={(e) => {
-                  // Prevent drag start on the title to allow double click
-                  e.stopPropagation();
-                }}
-                onTouchStart={(e) => {
-                  // Prevent drag start on touch devices
-                  e.stopPropagation();
                 }}
                 className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors no-drag select-text"
                 title="Double click to rename"
