@@ -122,11 +122,11 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
         </div>
 
         {/* Connectors List */}
-        <div className="px-4 space-y-1 max-h-[60vh] overflow-y-auto">
+        <div className="px-4 space-y-0.5 max-h-[50vh] overflow-y-auto">
           {connectors.map(connector => (
             <div 
               key={connector.id}
-              className="flex items-center justify-between py-3 px-2 hover:bg-white/5 rounded-lg transition-colors group"
+              className="flex items-center justify-between py-2.5 px-2 hover:bg-white/5 rounded-lg transition-colors group"
             >
               <div className="flex items-center gap-3">
                 <div className="text-zinc-300 group-hover:text-white transition-colors">
@@ -152,7 +152,7 @@ export function ConnectorsStore({ isOpen, onClose }: ConnectorsStoreProps) {
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-4 px-4 pb-8">
+        <div className="mt-2 px-4 pb-8 pt-2">
           <div className="bg-white/5 rounded-xl overflow-hidden">
             <button className="w-full flex items-center justify-between py-3.5 px-4 hover:bg-white/5 transition-colors group border-b border-white/5">
               <div className="flex items-center gap-3">
