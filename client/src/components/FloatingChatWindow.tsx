@@ -399,8 +399,9 @@ export function FloatingChatWindow({
         <div 
           className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0"
           onDoubleClick={(e) => {
-            // Only maximize if not clicking on the title input
-            if ((e.target as HTMLElement).tagName !== 'INPUT') {
+            // Only maximize if not clicking on the title input or the title span
+            const target = e.target as HTMLElement;
+            if (target.tagName !== 'INPUT' && !target.closest('.no-drag')) {
               toggleMaximize();
             }
           }}
@@ -426,7 +427,7 @@ export function FloatingChatWindow({
                     setEditTitleValue(conversationTitle);
                   }
                 }}
-                className="bg-background border border-primary/50 rounded px-1.5 py-0.5 text-sm w-full outline-none h-6"
+                className="bg-background border border-primary/50 rounded px-1.5 py-0.5 text-sm w-full outline-none h-6 no-drag"
                 onClick={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -435,9 +436,14 @@ export function FloatingChatWindow({
               <span 
                 onDoubleClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   renameChat();
                 }}
-                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors"
+                onMouseDown={(e) => {
+                  // Prevent drag start on the title to allow double click
+                  e.stopPropagation();
+                }}
+                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors no-drag select-text"
                 title="Double click to rename"
               >
                 {conversationTitle}
