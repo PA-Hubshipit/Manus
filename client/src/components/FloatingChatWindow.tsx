@@ -215,7 +215,8 @@ export function FloatingChatWindow({
     
     // Save to localStorage
     const saved = JSON.parse(localStorage.getItem('savedConversations') || '[]');
-    saved.push(conversation);
+    // Add new conversation to the beginning of the array
+    saved.unshift(conversation);
     localStorage.setItem('savedConversations', JSON.stringify(saved));
     
     // Update state to show in Recent Conversations immediately
