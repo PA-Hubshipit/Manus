@@ -75,6 +75,8 @@ export function ChatFooter({
 }: ChatFooterProps) {
   const [showFooterMenu, setShowFooterMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [showPlugins, setShowPlugins] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-grow textarea
@@ -427,21 +429,93 @@ export function ChatFooter({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toast.info('USER REQUESTED IMMEDIATE FORCE STOP')}
+              className={`h-7 w-7 ${isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => {
+                if (isListening) {
+                  // Stop listening
+                  setIsListening(false);
+                  if ((window as any).recognition) {
+                    (window as any).recognition.stop();
+                  }
+                } else {
+                  // Start listening
+                  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    (window as any).recognition = recognition;
+                    
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+                    
+                    recognition.onstart = () => {
+                      setIsListening(true);
+                      toast.info('Listening...');
+                    };
+                    
+                    recognition.onresult = (event: any) => {
+                      const transcript = event.results[0][0].transcript;
+                      onInputChange?.(inputMessage + (inputMessage ? ' ' : '') + transcript);
+                      setIsListening(false);
+                    };
+                    
+                    recognition.onerror = (event: any) => {
+                      console.error('Speech recognition error', event.error);
+                      setIsListening(false);
+                      toast.error('Voice input failed');
+                    };
+                    
+                    recognition.onend = () => {
+                      setIsListening(false);
+                    };
+                    
+                    recognition.start();
+                  } else {
+                    toast.error('Speech recognition not supported in this browser');
+                  }
+                }
+              }}
               title="Voice Input"
             >
               <Mic className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => toast.info('USER REQUESTED IMMEDIATE FORCE STOP')}
-              title="Plugins"
-            >
-              <Plug className="h-4 w-4" />
-            </Button>
+            
+            <div className="relative inline-block">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-7 w-7 ${showPlugins ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setShowPlugins(!showPlugins)}
+                title="Plugins"
+              >
+                <Plug className="h-4 w-4" />
+              </Button>
+              
+              {showPlugins && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[9998]"
+                    onClick={() => setShowPlugins(false)}
+                  />
+                  <div className="absolute bottom-full right-0 mb-2 w-48 bg-card rounded-lg shadow-xl z-[9999] border border-border overflow-hidden">
+                    <div className="px-3 py-2 border-b border-border bg-muted/50">
+                      <h4 className="text-xs font-semibold">Plugins</h4>
+                    </div>
+                    <div className="p-2 text-xs text-muted-foreground text-center">
+                      No plugins installed
+                    </div>
+                    <button
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-accent text-primary flex items-center gap-2"
+                      onClick={() => {
+                        toast.info('Plugin store coming soon');
+                        setShowPlugins(false);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" /> Add Plugin
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <Button
