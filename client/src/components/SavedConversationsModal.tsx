@@ -193,7 +193,15 @@ export function SavedConversationsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div 
+      className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => {
+        // Close when clicking the backdrop (outside the modal)
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="bg-background border border-border rounded-lg shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
@@ -273,7 +281,13 @@ export function SavedConversationsModal({
                 Login to Sync
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClose}
+              className="ml-2 hover:bg-destructive/20 hover:text-destructive"
+              title="Close"
+            >
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -444,6 +458,13 @@ export function SavedConversationsModal({
               );
             })
           )}
+        </div>
+        
+        {/* Footer with Close Button */}
+        <div className="flex items-center justify-end px-6 py-4 border-t border-border bg-card">
+          <Button onClick={onClose} variant="outline">
+            Close
+          </Button>
         </div>
       </div>
     </div>

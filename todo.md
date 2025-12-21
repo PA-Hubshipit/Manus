@@ -68,3 +68,9 @@
 - [x] Fix floating chat window dragging not working
 - [x] Fix Models button not working
 - [x] Fix Presets button not working
+
+## View All Saved Modal & Window Enhancements
+- [x] Fix View All Saved modal exit button not responding
+- [x] Implement Snap-to-Edge for chat window
+- [x] Implement Resize Handle for chat window
+- [x] Implement Window Memory (save position/size to localStorage)

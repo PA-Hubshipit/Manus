@@ -73,12 +73,19 @@ export function FloatingChatWindow({
   const [editingQuickPresetId, setEditingQuickPresetId] = useState<string | null>(null);
   const [showSavedConversationsModal, setShowSavedConversationsModal] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [windowSize, setWindowSize] = useState({ width: 400, height: 500 });
+  const [isResizing, setIsResizing] = useState(false);
+  const [snapIndicator, setSnapIndicator] = useState<'left' | 'right' | 'top' | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const dragControls = useDragControls();
   const constraintsRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const resizeStart = useRef({ x: 0, y: 0, width: 400, height: 500 });
+  
+  // Snap threshold in pixels
+  const SNAP_THRESHOLD = 30;
 
   // Native drag handler for better compatibility
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -118,8 +125,74 @@ export function FloatingChatWindow({
     document.removeEventListener('mouseup', handleMouseUp);
     document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', handleMouseUp);
-    onPositionChange?.(position);
-  }, [handleMouseMove, handleTouchMove, onPositionChange, position]);
+    
+    // Snap to edge if near
+    let finalX = position.x;
+    let finalY = position.y;
+    
+    if (position.x < SNAP_THRESHOLD) {
+      finalX = 0;
+    } else if (position.x > window.innerWidth - windowSize.width - SNAP_THRESHOLD) {
+      finalX = window.innerWidth - windowSize.width;
+    }
+    
+    if (position.y < SNAP_THRESHOLD) {
+      finalY = 0;
+    } else if (position.y > window.innerHeight - windowSize.height - SNAP_THRESHOLD) {
+      finalY = window.innerHeight - windowSize.height;
+    }
+    
+    if (finalX !== position.x || finalY !== position.y) {
+      setPosition({ x: finalX, y: finalY });
+    }
+    
+    setSnapIndicator(null);
+    onPositionChange?.({ x: finalX, y: finalY });
+    
+    // Save window position and size to localStorage
+    localStorage.setItem('chatWindowPosition', JSON.stringify({ x: finalX, y: finalY }));
+    localStorage.setItem('chatWindowSize', JSON.stringify(windowSize));
+  }, [handleMouseMove, handleTouchMove, onPositionChange, position, windowSize, SNAP_THRESHOLD]);
+  
+  // Resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    resizeStart.current = { x: clientX, y: clientY, width: windowSize.width, height: windowSize.height };
+    
+    const handleResizeMove = (moveEvent: MouseEvent | TouchEvent) => {
+      const moveX = 'touches' in moveEvent ? (moveEvent as TouchEvent).touches[0].clientX : (moveEvent as MouseEvent).clientX;
+      const moveY = 'touches' in moveEvent ? (moveEvent as TouchEvent).touches[0].clientY : (moveEvent as MouseEvent).clientY;
+      
+      const deltaX = moveX - resizeStart.current.x;
+      const deltaY = moveY - resizeStart.current.y;
+      
+      const newWidth = Math.max(320, Math.min(800, resizeStart.current.width + deltaX));
+      const newHeight = Math.max(300, Math.min(800, resizeStart.current.height + deltaY));
+      
+      setWindowSize({ width: newWidth, height: newHeight });
+    };
+    
+    const handleResizeEnd = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.removeEventListener('touchmove', handleResizeMove);
+      document.removeEventListener('touchend', handleResizeEnd);
+      
+      // Save window size to localStorage
+      localStorage.setItem('chatWindowSize', JSON.stringify(windowSize));
+    };
+    
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.addEventListener('touchmove', handleResizeMove);
+    document.addEventListener('touchend', handleResizeEnd);
+  }, [windowSize]);
 
   // Load saved conversations and custom presets from localStorage on mount
   useEffect(() => {
@@ -131,6 +204,34 @@ export function FloatingChatWindow({
     setCustomPresets(presets);
     const quick = loadQuickPresets();
     setQuickPresets(quick);
+    
+    // Load window position and size from localStorage (Window Memory)
+    const savedPosition = localStorage.getItem('chatWindowPosition');
+    const savedSize = localStorage.getItem('chatWindowSize');
+    
+    if (savedPosition) {
+      try {
+        const pos = JSON.parse(savedPosition);
+        // Validate position is within viewport
+        const validX = Math.max(0, Math.min(window.innerWidth - 400, pos.x));
+        const validY = Math.max(0, Math.min(window.innerHeight - 100, pos.y));
+        setPosition({ x: validX, y: validY });
+      } catch (e) {
+        console.error('Failed to parse saved position', e);
+      }
+    }
+    
+    if (savedSize) {
+      try {
+        const size = JSON.parse(savedSize);
+        setWindowSize({ 
+          width: Math.max(320, Math.min(800, size.width)), 
+          height: Math.max(300, Math.min(800, size.height)) 
+        });
+      } catch (e) {
+        console.error('Failed to parse saved size', e);
+      }
+    }
   }, []);
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -484,14 +585,12 @@ export function FloatingChatWindow({
     : {
         top: position.y,
         left: position.x,
-        width: 'min(400px, 90vw)',
-        height: isMinimized ? 'auto' : 'min(500px, 70vh)'
+        width: `min(${windowSize.width}px, 90vw)`,
+        height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)`
       };
 
   if (isMinimized) {
     windowStyle.height = 'auto';
-  } else if (!isMaximized) {
-    windowStyle.height = 'min(500px, 70vh)';
   }
 
   return (
@@ -748,6 +847,23 @@ export function FloatingChatWindow({
             archivedCount={archivedConversations.length}
           />
         </>
+      )}
+      
+      {/* Resize Handle (bottom-right corner) */}
+      {!isMaximized && !isMinimized && (
+        <div
+          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize group"
+          onMouseDown={(e) => handleResizeStart(e, 'se')}
+          onTouchStart={(e) => handleResizeStart(e, 'se')}
+        >
+          <svg
+            className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
+          </svg>
+        </div>
       )}
     </motion.div>
     
