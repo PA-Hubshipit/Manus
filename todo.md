@@ -63,3 +63,8 @@
 - [x] Update frontend to sync conversations with database
 - [x] Implement Advanced Analytics with visual charts
 - [x] Implement Keyboard Shortcuts (Ctrl+K for search, Ctrl+S for save)
+
+## Bug Fixes (Reported Issues)
+- [x] Fix floating chat window dragging not working
+- [x] Fix Models button not working
+- [x] Fix Presets button not working

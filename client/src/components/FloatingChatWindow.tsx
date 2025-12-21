@@ -77,6 +77,49 @@ export function FloatingChatWindow({
   
   const dragControls = useDragControls();
   const constraintsRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  // Native drag handler for better compatibility
+  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (isPinned || isMaximized) return;
+    
+    isDragging.current = true;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStart.current = { x: clientX - position.x, y: clientY - position.y };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleMouseUp);
+  }, [isPinned, isMaximized, position]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging.current) return;
+    
+    const newX = Math.max(0, Math.min(window.innerWidth - 400, e.clientX - dragStart.current.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 100, e.clientY - dragStart.current.y));
+    setPosition({ x: newX, y: newY });
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isDragging.current) return;
+    
+    const touch = e.touches[0];
+    const newX = Math.max(0, Math.min(window.innerWidth - 400, touch.clientX - dragStart.current.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 100, touch.clientY - dragStart.current.y));
+    setPosition({ x: newX, y: newY });
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleMouseUp);
+    onPositionChange?.(position);
+  }, [handleMouseMove, handleTouchMove, onPositionChange, position]);
 
   // Load saved conversations and custom presets from localStorage on mount
   useEffect(() => {
@@ -458,6 +501,7 @@ export function FloatingChatWindow({
       dragControls={dragControls}
       dragListener={false}
       dragMomentum={false}
+      dragConstraints={{ left: 0, top: 0, right: window.innerWidth - 400, bottom: window.innerHeight - 200 }}
       onDragEnd={handleDragEnd}
       className="fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-[900]"
       style={windowStyle}
@@ -474,11 +518,13 @@ export function FloatingChatWindow({
         }}
       >
         <div 
-          className="drag-handle flex items-center gap-2 cursor-move flex-1 min-w-0 mr-4"
-          onPointerDown={(e) => {
-            if (!isPinned && !isMaximized) {
-              dragControls.start(e);
-            }
+          className="drag-handle flex items-center gap-2 cursor-move flex-1 min-w-0 mr-4 touch-none select-none"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            handleMouseDown(e);
+          }}
+          onTouchStart={(e) => {
+            handleMouseDown(e);
           }}
         >
           {/* Drag Handle - Explicit drag zone */}
@@ -669,37 +715,31 @@ export function FloatingChatWindow({
 
           {/* Footer */}
           <ChatFooter
-            selectedModels={selectedModels}
-            showModelSelector={showModelSelector}
-            showPresets={showPresets}
-            showSettings={showSettings}
-            onNewChat={clearChat}
-            onRenameChat={renameChat}
-            onSaveChat={saveConversation}
-            onClearChat={clearChat}
-            onDeleteChat={deleteChat}
-            onShowAnalytics={showAnalyticsPanel}
-            onExport={exportConversation}
-            onSummarizer={handleSummarizer}
-            onToggleModelSelector={() => {
+            selectedModelsCount={selectedModels.length}
+            inputMessage={inputMessage}
+            onInputChange={setInputMessage}
+            onModelsClick={() => {
               setShowPresets(false);
               setShowModelSelector(!showModelSelector);
             }}
-            onTogglePresets={() => {
+            onSettingsClick={() => setShowSettings(!showSettings)}
+            onSummarizerClick={handleSummarizer}
+            onPresetsClick={() => {
               setShowPresets(true);
               setShowModelSelector(true);
             }}
-            onToggleSettings={() => setShowSettings(!showSettings)}
-            onOpenPresetsSettings={openPresetsSettings}
-            onCloseSettings={() => {
-              setShowSettings(false);
-              setShowModelSelector(false);
-            }}
-            inputMessage={inputMessage}
-            onInputChange={setInputMessage}
+            onNewChat={clearChat}
+            onSave={saveConversation}
             onSend={handleSend}
             onAttach={() => {}}
             isLoading={isLoading}
+            onClearChat={clearChat}
+            onDeleteChat={deleteChat}
+            onRenameChat={renameChat}
+            onShowAnalytics={showAnalyticsPanel}
+            onExportData={exportConversation}
+            onPresetsSettings={openPresetsSettings}
+            messagesCount={messages.length}
             attachments={attachments}
             onRemoveAttachment={removeAttachment}
             savedConversations={savedConversations}
