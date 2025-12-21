@@ -11,6 +11,7 @@ import { PresetsManagementModal, CustomPreset } from './PresetsManagementModal';
 import { RenameChatDialog } from './RenameChatDialog';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { PresetSelectionDialog } from './PresetSelectionDialog';
+import { SavedConversationsModal } from './SavedConversationsModal';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
 import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset } from '@/lib/quick-presets';
 import { toast } from 'sonner';
@@ -68,6 +69,7 @@ export function FloatingChatWindow({
   const [quickPresets, setQuickPresets] = useState<QuickPreset[]>([]);
   const [showPresetSelection, setShowPresetSelection] = useState(false);
   const [editingQuickPresetId, setEditingQuickPresetId] = useState<string | null>(null);
+  const [showSavedConversationsModal, setShowSavedConversationsModal] = useState(false);
 
   // Load saved conversations and custom presets from localStorage on mount
   useEffect(() => {
@@ -316,7 +318,39 @@ export function FloatingChatWindow({
   };
 
   const viewAllSaved = () => {
-    toast.info('View All Saved coming soon');
+    setShowSavedConversationsModal(true);
+  };
+
+  const handleDeleteSavedConversation = (id: string, isArchived: boolean) => {
+    if (isArchived) {
+      const updated = archivedConversations.filter(c => c.id !== id);
+      setArchivedConversations(updated);
+      localStorage.setItem('archivedConversations', JSON.stringify(updated));
+    } else {
+      const updated = savedConversations.filter(c => c.id !== id);
+      setSavedConversations(updated);
+      localStorage.setItem('savedConversations', JSON.stringify(updated));
+    }
+    toast.success('Conversation deleted');
+  };
+
+  const handleUpdateSavedConversation = (updatedConvo: SavedConvo, isArchived: boolean) => {
+    if (isArchived) {
+      const updated = archivedConversations.map(c => c.id === updatedConvo.id ? updatedConvo : c);
+      setArchivedConversations(updated);
+      localStorage.setItem('archivedConversations', JSON.stringify(updated));
+    } else {
+      const updated = savedConversations.map(c => c.id === updatedConvo.id ? updatedConvo : c);
+      setSavedConversations(updated);
+      localStorage.setItem('savedConversations', JSON.stringify(updated));
+    }
+  };
+
+  const handleImportConversations = (saved: SavedConvo[], archived: SavedConvo[]) => {
+    setSavedConversations(saved);
+    setArchivedConversations(archived);
+    localStorage.setItem('savedConversations', JSON.stringify(saved));
+    localStorage.setItem('archivedConversations', JSON.stringify(archived));
   };
 
   const openPresetsSettings = () => {
@@ -716,6 +750,18 @@ export function FloatingChatWindow({
       customPresets={customPresets}
       quickPresets={quickPresets}
       onAdd={handleAddQuickPresets}
+    />
+
+    {/* Saved Conversations Modal */}
+    <SavedConversationsModal
+      isOpen={showSavedConversationsModal}
+      onClose={() => setShowSavedConversationsModal(false)}
+      savedConversations={savedConversations}
+      archivedConversations={archivedConversations}
+      onLoadConversation={loadConversation}
+      onDeleteConversation={handleDeleteSavedConversation}
+      onUpdateConversation={handleUpdateSavedConversation}
+      onImport={handleImportConversations}
     />
     </>
   );
