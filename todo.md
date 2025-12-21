@@ -84,3 +84,8 @@
 ## Critical Bug Fixes (User Reported)
 - [x] Fix Models button causing React error #185 (fixed infinite loop in useEffect)
 - [x] Fix Presets button - now shows Quick Presets panel correctly
+
+## Presets Button Fix (User Clarification)
+- [x] Fix Presets button to show presets from Settings → Presets Setting
+- [x] Now shows both built-in presets (Coding Team, Creative Writers, etc.) AND custom presets
+- [x] Clicking a preset applies the models correctly (verified: Coding Team applies GPT-4, DeepSeek Coder, Codestral)

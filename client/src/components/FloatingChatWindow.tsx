@@ -825,6 +825,31 @@ export function FloatingChatWindow({
                   </Button>
                 </div>
                 <div className="space-y-2">
+                  {/* Built-in Presets */}
+                  {Object.entries(MODEL_PRESETS).map(([key, preset]) => {
+                    // Check if there's a custom preset with the same name that overrides it
+                    const customOverride = customPresets.find(cp => cp.name === preset.name);
+                    if (customOverride) return null; // Skip if overridden by custom preset
+                    
+                    return (
+                      <div key={`builtin-${key}`} className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => applyPreset({ name: preset.name, models: preset.models })}
+                          className="flex-1 justify-between text-xs h-8"
+                        >
+                          <span className="flex-1 text-left truncate">
+                            {preset.name}
+                          </span>
+                          <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
+                            {preset.models.length}
+                          </span>
+                        </Button>
+                      </div>
+                    );
+                  })}
+                  {/* Custom Presets */}
                   {customPresets.map((preset) => (
                     <div key={preset.id} className="flex items-center gap-1">
                       <Button
@@ -868,11 +893,6 @@ export function FloatingChatWindow({
                       </Button>
                     </div>
                   ))}
-                  {customPresets.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">
-                      No presets yet. Create one to quickly select multiple models.
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
