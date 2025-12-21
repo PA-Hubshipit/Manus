@@ -10,6 +10,7 @@ import ConversationPage from "./pages/ConversationPage";
 import EmptyPage from "./pages/EmptyPage";
 
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={EmptyPage} />

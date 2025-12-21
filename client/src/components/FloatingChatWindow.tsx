@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import Draggable from 'react-draggable';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, useDragControls, PanInfo } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal } from 'lucide-react';
 import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
@@ -12,6 +12,8 @@ import { RenameChatDialog } from './RenameChatDialog';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { PresetSelectionDialog } from './PresetSelectionDialog';
 import { SavedConversationsModal } from './SavedConversationsModal';
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { useKeyboardShortcuts, SHORTCUT_KEYS } from '@/hooks/useKeyboardShortcuts';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
 import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset } from '@/lib/quick-presets';
 import { toast } from 'sonner';
@@ -70,6 +72,11 @@ export function FloatingChatWindow({
   const [showPresetSelection, setShowPresetSelection] = useState(false);
   const [editingQuickPresetId, setEditingQuickPresetId] = useState<string | null>(null);
   const [showSavedConversationsModal, setShowSavedConversationsModal] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  
+  const dragControls = useDragControls();
+  const constraintsRef = useRef<HTMLDivElement>(null);
 
   // Load saved conversations and custom presets from localStorage on mount
   useEffect(() => {
@@ -83,8 +90,11 @@ export function FloatingChatWindow({
     setQuickPresets(quick);
   }, []);
 
-  const handleDrag = (_e: any, data: { x: number; y: number }) => {
-    const newPos = { x: data.x, y: data.y };
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const newPos = { 
+      x: position.x + info.offset.x, 
+      y: position.y + info.offset.y 
+    };
     setPosition(newPos);
     onPositionChange?.(newPos);
   };
@@ -100,80 +110,173 @@ export function FloatingChatWindow({
 
   const toggleMaximize = () => {
     setIsMaximized(!isMaximized);
+    if (!isMaximized) {
+      toast.info('Window maximized');
+    }
   };
 
   const handleSend = async () => {
-    if (!inputMessage.trim() || selectedModels.length === 0 || isLoading) return;
+    if (!inputMessage.trim()) return;
     
-    setIsLoading(true);
+    if (selectedModels.length === 0) {
+      toast.error('Please select at least one AI model');
+      return;
+    }
     
-    // Create user message
     const userMessage = {
       id: Date.now(),
       type: 'user',
       content: inputMessage,
-      timestamp: new Date(),
-      attachments: attachments.length > 0 ? attachments : undefined
+      timestamp: new Date()
     };
     
-    setMessages(prev => [...prev, userMessage]);
-    const userMessageContent = inputMessage;
+    setMessages([...messages, userMessage]);
     setInputMessage('');
-    setAttachments([]);
+    setIsLoading(true);
     
-    // Simulate AI responses from each selected model
-    for (let i = 0; i < selectedModels.length; i++) {
-      const modelKey = selectedModels[i];
-      const [provider, model] = modelKey.split(':');
-      
-      // Add typing indicator
-      const typingId = `typing-${Date.now()}-${i}`;
-      setMessages(prev => [...prev, {
-        id: typingId,
-        type: 'typing',
-        provider,
-        model,
-        timestamp: new Date()
-      }]);
-      
-      // Simulate API delay (1-3 seconds)
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-      
-      // Remove typing indicator and add AI response
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== typingId);
-        return [...filtered, {
-          id: Date.now() + i,
-          type: 'ai',
-          provider,
-          model,
-          content: `This is a simulated response from ${model} (${provider}). In a real implementation, this would be the actual AI response to: "${userMessageContent}"`,
+    // Simulate AI responses
+    setTimeout(() => {
+      const aiResponses = selectedModels.map((modelKey, index) => {
+        const [provider, model] = modelKey.split(':');
+        return {
+          id: Date.now() + index + 1,
+          type: 'assistant',
+          content: `This is a simulated response from ${model}. In a real implementation, this would connect to the ${provider} API.`,
+          model: model,
+          provider: provider,
           timestamp: new Date()
-        }];
+        };
       });
-    }
-    
-    setIsLoading(false);
-    toast.success(`Received ${selectedModels.length} response(s)`);
-  };
-
-  const handleFileUpload = (files: File[]) => {
-    const newAttachments = files.map(file => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      file
-    }));
-    setAttachments([...attachments, ...newAttachments]);
+      
+      setMessages(prev => [...prev, ...aiResponses]);
+      setIsLoading(false);
+    }, 1000);
   };
 
   const removeAttachment = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
-    toast.info('Attachment removed');
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const toggleModel = (provider: string, model: string) => {
-    const modelKey = `${provider}:${model}`;
+  const handleRename = (newTitle: string) => {
+    if (newTitle.trim()) {
+      setConversationTitle(newTitle.trim());
+      toast.success('Chat renamed');
+    }
+    setShowRenameDialog(false);
+  };
+
+  const renameChat = () => {
+    setEditTitleValue(conversationTitle);
+    setIsEditingTitle(true);
+  };
+
+  const saveConversation = () => {
+    if (messages.length === 0) {
+      toast.error('No messages to save');
+      return;
+    }
+    
+    const newConvo: SavedConvo = {
+      id: `convo-${Date.now()}`,
+      title: conversationTitle,
+      messages: messages,
+      models: selectedModels,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Auto-archiving logic: if we already have 3 recent conversations, archive the oldest
+    let updatedSaved = [...savedConversations];
+    let updatedArchived = [...archivedConversations];
+    
+    if (updatedSaved.length >= 3) {
+      // Move the oldest conversation to archive
+      const oldest = updatedSaved[updatedSaved.length - 1];
+      updatedArchived = [oldest, ...updatedArchived];
+      updatedSaved = updatedSaved.slice(0, 2);
+    }
+    
+    updatedSaved = [newConvo, ...updatedSaved];
+    
+    setSavedConversations(updatedSaved);
+    setArchivedConversations(updatedArchived);
+    localStorage.setItem('savedConversations', JSON.stringify(updatedSaved));
+    localStorage.setItem('archivedConversations', JSON.stringify(updatedArchived));
+    toast.success('Conversation saved');
+  };
+
+  const clearChat = () => {
+    setMessages([]);
+    setConversationTitle(`Chat ${id}`);
+    toast.info('Chat cleared');
+  };
+
+  // Keyboard shortcuts
+  const newChat = useCallback(() => {
+    setMessages([]);
+    setConversationTitle(`Chat ${Date.now()}`);
+    toast.info('New chat started');
+  }, []);
+
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useKeyboardShortcuts({
+    enabled: true,
+    shortcuts: [
+      { ...SHORTCUT_KEYS.NEW_CHAT, action: newChat },
+      { ...SHORTCUT_KEYS.SAVE_CHAT, action: saveConversation },
+      { ...SHORTCUT_KEYS.SEARCH, action: () => setShowSavedConversationsModal(true) },
+      { ...SHORTCUT_KEYS.SETTINGS, action: () => setShowSettings(true) },
+      { ...SHORTCUT_KEYS.CLEAR_CHAT, action: clearChat },
+      { ...SHORTCUT_KEYS.FOCUS_INPUT, action: focusInput },
+      { key: '?', action: () => setShowKeyboardHelp(prev => !prev), description: 'Toggle Keyboard Help' },
+      { ...SHORTCUT_KEYS.CLOSE, action: () => {
+        if (showKeyboardHelp) setShowKeyboardHelp(false);
+        else if (showSavedConversationsModal) setShowSavedConversationsModal(false);
+        else if (showAnalytics) setShowAnalytics(false);
+        else if (showSettings) setShowSettings(false);
+        else if (showModelSelector) setShowModelSelector(false);
+        else if (showPresets) setShowPresets(false);
+      }},
+    ],
+  });
+
+  const deleteChat = () => {
+    setMessages([]);
+    setConversationTitle(`Chat ${id}`);
+    toast.success('Chat deleted');
+  };
+
+  const showAnalyticsPanel = () => {
+    setShowAnalytics(true);
+  };
+
+  const exportConversation = () => {
+    if (messages.length === 0) {
+      toast.error('No messages to export');
+      return;
+    }
+    
+    const exportData = {
+      title: conversationTitle,
+      messages: messages,
+      models: selectedModels,
+      exportedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${conversationTitle.replace(/[^a-z0-9]/gi, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Conversation exported');
+  };
+
+  const toggleModel = (providerKey: string, model: string) => {
+    const modelKey = `${providerKey}:${model}`;
     setSelectedModels(prev => 
       prev.includes(modelKey) 
         ? prev.filter(m => m !== modelKey)
@@ -183,118 +286,31 @@ export function FloatingChatWindow({
 
   const addModelFromDropdown = () => {
     if (selectedProvider && selectedModel) {
-      toggleModel(selectedProvider, selectedModel);
+      const modelKey = `${selectedProvider}:${selectedModel}`;
+      if (!selectedModels.includes(modelKey)) {
+        setSelectedModels(prev => [...prev, modelKey]);
+        toast.success(`Added ${selectedModel}`);
+      }
       setSelectedProvider('');
       setSelectedModel('');
     }
   };
 
-  const getProviderColor = (provider?: string) => {
-    if (!provider) return 'bg-gray-500';
-    return AI_PROVIDERS[provider as keyof typeof AI_PROVIDERS]?.color || 'bg-gray-500';
-  };
-
-  const applyPreset = (models: string[]) => {
-    setSelectedModels(models);
+  const applyPreset = (preset: { name: string; models: string[] }) => {
+    setSelectedModels(preset.models);
     setShowPresets(false);
-    setShowModelSelector(false);
-    toast.success('Preset applied!');
+    toast.success(`Applied preset: ${preset.name}`);
   };
 
-  const saveConversation = () => {
-    if (messages.length === 0) {
-      toast.error('No messages to save');
-      return;
-    }
-    
-    const conversation = {
-      id: Date.now().toString(),
-      title: conversationTitle,
-      messages: messages,
-      timestamp: new Date().toISOString(),
-      models: selectedModels
-    };
-    
-    // Save to localStorage
-    let saved = JSON.parse(localStorage.getItem('savedConversations') || '[]');
-    let archived = JSON.parse(localStorage.getItem('archivedConversations') || '[]');
-    
-    // Add new conversation to the beginning of the array
-    saved.unshift(conversation);
-    
-    // If we have more than 3 saved conversations, move the excess to archive
-    if (saved.length > 3) {
-      const toArchive = saved.slice(3);
-      saved = saved.slice(0, 3);
-      archived = [...toArchive, ...archived];
-      
-      localStorage.setItem('archivedConversations', JSON.stringify(archived));
-      setArchivedConversations(archived);
-    }
-    
-    localStorage.setItem('savedConversations', JSON.stringify(saved));
-    
-    // Update state to show in Recent Conversations immediately
-    setSavedConversations(saved);
-    
-    toast.success('Conversation saved!');
-  };
-
-  const clearChat = () => {
-    setMessages([]);
-    setConversationTitle(`Chat ${id}`);
-    toast.success('Chat cleared');
-  };
-
-  const deleteChat = () => {
-    setMessages([]);
-    setConversationTitle(`Chat ${id}`);
-    toast.success('Chat deleted');
-  };
-
-  const renameChat = () => {
-    setIsEditingTitle(true);
-    setEditTitleValue(conversationTitle);
-  };
-
-  const handleRename = (newTitle: string) => {
-    setConversationTitle(newTitle);
-    toast.success('Chat renamed');
-  };
-
-  const exportConversation = () => {
-    if (messages.length === 0) {
-      toast.error('No messages to export');
-      return;
-    }
-    
-    const data = {
-      title: conversationTitle,
-      messages: messages,
-      models: selectedModels,
-      exportedAt: new Date().toISOString()
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${conversationTitle.replace(/\s+/g, '_')}_${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    toast.success('Conversation exported!');
-  };
-
-  const generateSynthesis = () => {
-    if (messages.length === 0) {
-      toast.error('No messages to synthesize');
+  const handleSummarizer = () => {
+    if (selectedModels.length === 0) {
+      toast.error('Please select at least one AI model');
       return;
     }
     
     const aiResponses = messages.filter(m => m.type === 'assistant');
-    if (aiResponses.length < 2) {
-      toast.error('Need at least 2 AI responses to synthesize');
+    if (aiResponses.length === 0) {
+      toast.error('No AI responses to synthesize');
       return;
     }
     
@@ -404,298 +420,296 @@ export function FloatingChatWindow({
     setShowPresetEditor(true);
   };
 
-  const handleDeleteQuickPreset = (id: string) => {
-    if (!confirm('Are you sure you want to remove this preset from Quick Presets?')) return;
-    
+  const handleRemoveQuickPreset = (id: string) => {
     const updated = removeQuickPreset(quickPresets, id);
     setQuickPresets(updated);
     saveQuickPresets(updated);
     toast.success('Preset removed from Quick Presets');
   };
 
-  // Calculate window dimensions
-  const windowStyle: React.CSSProperties = {
-    zIndex: 1000,
-  };
+  // Window styles
+  const windowStyle: React.CSSProperties = isMaximized
+    ? {
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        borderRadius: 0
+      }
+    : {
+        top: position.y,
+        left: position.x,
+        width: 'min(400px, 90vw)',
+        height: isMinimized ? 'auto' : 'min(500px, 70vh)'
+      };
 
-  if (isMaximized) {
-    windowStyle.width = 'calc(100vw - 32px)';
-    windowStyle.height = 'calc(100vh - 32px)';
-    windowStyle.left = '16px';
-    windowStyle.top = '16px';
-  } else if (isMinimized) {
-    windowStyle.width = '320px';
+  if (isMinimized) {
     windowStyle.height = 'auto';
-  } else {
-    windowStyle.width = 'min(600px, 90vw)';
+  } else if (!isMaximized) {
     windowStyle.height = 'min(500px, 70vh)';
   }
 
   return (
     <>
-    <Draggable
-      disabled={isPinned || isMaximized}
-      position={isPinned || isMaximized ? { x: 0, y: 0 } : position}
-      onDrag={handleDrag}
-      handle=".drag-handle"
-      cancel=".no-drag"
-      bounds="parent"
+    <motion.div
+      drag={!isPinned && !isMaximized}
+      dragControls={dragControls}
+      dragListener={false}
+      dragMomentum={false}
+      onDragEnd={handleDragEnd}
+      className="fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-[900]"
+      style={windowStyle}
     >
-      <div
-        className="fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-[900]"
-        style={windowStyle}
+      {/* Header */}
+      <div 
+        className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0"
+        onDoubleClick={(e) => {
+          // Only maximize if not clicking on the title input or the title span
+          const target = e.target as HTMLElement;
+          if (target.tagName !== 'INPUT' && !target.closest('.no-drag')) {
+            toggleMaximize();
+          }
+        }}
       >
-        {/* Header */}
         <div 
-          className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0"
-          onDoubleClick={(e) => {
-            // Only maximize if not clicking on the title input or the title span
-            const target = e.target as HTMLElement;
-            if (target.tagName !== 'INPUT' && !target.closest('.no-drag')) {
-              toggleMaximize();
+          className="drag-handle flex items-center gap-2 cursor-move flex-1 min-w-0 mr-4"
+          onPointerDown={(e) => {
+            if (!isPinned && !isMaximized) {
+              dragControls.start(e);
             }
           }}
         >
-          <div className="drag-handle flex items-center gap-2 cursor-move flex-1 min-w-0 mr-4">
-            {/* Drag Handle - Explicit drag zone */}
-            <div className="flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-colors">
-              <GripHorizontal className="h-4 w-4" />
-            </div>
-            
-            <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-            
-            {isEditingTitle ? (
-              <input
-                autoFocus
-                type="text"
-                value={editTitleValue}
-                onChange={(e) => setEditTitleValue(e.target.value)}
-                onBlur={() => {
-                  handleRename(editTitleValue);
-                  setIsEditingTitle(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleRename(editTitleValue);
-                    setIsEditingTitle(false);
-                  } else if (e.key === 'Escape') {
-                    setIsEditingTitle(false);
-                    setEditTitleValue(conversationTitle);
-                  }
-                }}
-                className="bg-background border border-primary/50 rounded px-1.5 py-0.5 text-sm w-full outline-none h-6 no-drag"
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <span 
-                onClick={(e) => {
-                  // Custom double-tap detection for mobile using ref
-                  const now = Date.now();
-                  if (lastTapRef.current && (now - lastTapRef.current < 300)) {
-                    // Double tap detected
-                    e.preventDefault();
-                    e.stopPropagation();
-                    renameChat();
-                    lastTapRef.current = 0; // Reset
-                  } else {
-                    lastTapRef.current = now;
-                  }
-                }}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  renameChat();
-                }}
-                // Added no-drag class to prevent dragging from the title text
-                // This ensures double-tap works reliably without initiating drag
-                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors select-none no-drag"
-                title="Double click to rename"
-              >
-                {conversationTitle}
-              </span>
-            )}
+          {/* Drag Handle - Explicit drag zone */}
+          <div className="flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-colors">
+            <GripHorizontal className="h-4 w-4" />
           </div>
           
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={togglePin}
-              className="h-7 w-7"
-              title={isPinned ? 'Unpin' : 'Pin'}
-            >
-              <Pin className={`h-3.5 w-3.5 ${isPinned ? 'fill-current' : ''}`} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMinimize}
-              className="h-7 w-7"
-              title={isMinimized ? 'Restore' : 'Minimize'}
-            >
-              <Minus className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMaximize}
-              className="h-7 w-7"
-              title={isMaximized ? 'Restore' : 'Maximize'}
-            >
-              {isMaximized ? (
-                <Minimize2 className="h-3.5 w-3.5" />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-7 w-7"
-              title="Close"
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Content - Only show if not minimized */}
-        {!isMinimized && (
-          <>
-            {/* Model Selector Panel */}
-            {showModelSelector && (
-              <ModelSelector
-                selectedModels={selectedModels}
-                selectedProvider={selectedProvider}
-                selectedModel={selectedModel}
-                onProviderChange={setSelectedProvider}
-                onModelChange={setSelectedModel}
-                onToggleModel={toggleModel}
-                onAddModel={addModelFromDropdown}
-                getProviderColor={getProviderColor}
-              />
-            )}
-
-            {/* Presets Panel */}
-            {showPresets && (
-              <PresetsPanel
-                onApplyPreset={applyPreset}
-                quickPresets={quickPresets}
-                onNewPreset={() => setShowPresetSelection(true)}
-                onEditPreset={handleEditQuickPreset}
-                onDeletePreset={handleDeleteQuickPreset}
-              />
-            )}
-
-            <div className="flex-1 p-4 overflow-auto min-h-0">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="text-6xl mb-4">💬</div>
-                  <h2 className="text-xl font-semibold mb-2">Start a conversation with multiple AIs</h2>
-                  <p className="text-sm text-muted-foreground">Select models and send a message</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div key={message.id} className="flex flex-col gap-2">
-                      {message.type === 'user' && (
-                        <div className="flex justify-end">
-                          <div className="max-w-[80%] bg-primary text-primary-foreground rounded-lg px-4 py-2">
-                            <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-                            {message.attachments && message.attachments.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {message.attachments.map((att: any, idx: number) => (
-                                  <div key={idx} className="text-xs opacity-80">📎 {att.name}</div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="text-xs opacity-70 mt-1">
-                              {new Date(message.timestamp).toLocaleTimeString()}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {message.type === 'ai' && (
-                        <div className="flex justify-start">
-                          <div className="max-w-[80%] bg-card border border-border rounded-lg px-4 py-2">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className={`w-2 h-2 rounded-full ${getProviderColor(message.provider)}`} />
-                              <span className="text-xs font-semibold">{message.model}</span>
-                            </div>
-                            <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {new Date(message.timestamp).toLocaleTimeString()}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {message.type === 'typing' && (
-                        <div className="flex justify-start">
-                          <div className="max-w-[80%] bg-card border border-border rounded-lg px-4 py-2">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${getProviderColor(message.provider)}`} />
-                              <span className="text-xs font-semibold">{message.model}</span>
-                            </div>
-                            <div className="flex items-center gap-1 mt-1">
-                              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
-                              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
-                              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Footer */}
-            <ChatFooter
-              selectedModelsCount={selectedModels.length}
-              onModelsClick={() => setShowModelSelector(!showModelSelector)}
-              onNewChat={() => {
-                setMessages([]);
-                setInputMessage('');
-                setConversationTitle(`Chat ${id}`);
-                toast.success('New chat started');
+          <MessageSquare className="h-4 w-4 text-primary shrink-0" />
+          
+          {isEditingTitle ? (
+            <input
+              autoFocus
+              type="text"
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onBlur={() => {
+                handleRename(editTitleValue);
+                setIsEditingTitle(false);
               }}
-              onSave={saveConversation}
-              onClearChat={clearChat}
-              onDeleteChat={deleteChat}
-              onRenameChat={renameChat}
-              onShowAnalytics={() => {
-                setShowAnalytics(!showAnalytics);
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleRename(editTitleValue);
+                  setIsEditingTitle(false);
+                } else if (e.key === 'Escape') {
+                  setIsEditingTitle(false);
+                  setEditTitleValue(conversationTitle);
+                }
               }}
-              onExportData={exportConversation}
-              onPresetsSettings={openPresetsSettings}
-              onSettingsClick={() => setShowSettings(!showSettings)}
-              onSummarizerClick={generateSynthesis}
-              messagesCount={messages.length}
-              onPresetsClick={() => {
-                setShowPresets(!showPresets);
-                setShowModelSelector(false);
-              }}
-              inputMessage={inputMessage}
-              onInputChange={setInputMessage}
-              onSend={handleSend}
-              onAttach={() => {}}
-              isLoading={isLoading}
-              attachments={attachments}
-              onRemoveAttachment={removeAttachment}
-              savedConversations={savedConversations}
-              onLoadConversation={loadConversation}
-              onViewAllSaved={viewAllSaved}
-              archivedCount={archivedConversations.length}
+              className="bg-background border border-primary/50 rounded px-1.5 py-0.5 text-sm w-full outline-none h-6 no-drag"
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             />
-          </>
-        )}
+          ) : (
+            <span 
+              onClick={(e) => {
+                // Custom double-tap detection for mobile using ref
+                const now = Date.now();
+                if (lastTapRef.current && (now - lastTapRef.current < 300)) {
+                  // Double tap detected
+                  e.preventDefault();
+                  e.stopPropagation();
+                  renameChat();
+                  lastTapRef.current = 0; // Reset
+                } else {
+                  lastTapRef.current = now;
+                }
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                renameChat();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              // Added no-drag class to prevent dragging from the title text
+              // This ensures double-tap works reliably without initiating drag
+              className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors select-none no-drag"
+              title="Double click to rename"
+            >
+              {conversationTitle}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={togglePin}
+            className="h-7 w-7"
+            title={isPinned ? 'Unpin' : 'Pin'}
+          >
+            <Pin className={`h-3.5 w-3.5 ${isPinned ? 'fill-current' : ''}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMinimize}
+            className="h-7 w-7"
+            title={isMinimized ? 'Restore' : 'Minimize'}
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMaximize}
+            className="h-7 w-7"
+            title={isMaximized ? 'Restore' : 'Maximize'}
+          >
+            {isMaximized ? (
+              <Minimize2 className="h-3.5 w-3.5" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            title="Close"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
-    </Draggable>
+
+      {/* Content - Hidden when minimized */}
+      {!isMinimized && (
+        <>
+          {/* Model Selector Panel */}
+          {showModelSelector && (
+            <ModelSelector
+              selectedModels={selectedModels}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              showPresets={showPresets}
+              onToggleModel={toggleModel}
+              onProviderChange={setSelectedProvider}
+              onModelChange={setSelectedModel}
+              onAddModel={addModelFromDropdown}
+              onTogglePresets={() => setShowPresets(!showPresets)}
+              onApplyPreset={applyPreset}
+              onCreatePreset={() => {
+                setEditingPreset(null);
+                setShowPresetEditor(true);
+              }}
+              customPresets={customPresets}
+              onEditPreset={(preset) => {
+                setEditingPreset(preset);
+                setShowPresetEditor(true);
+              }}
+              onDeletePreset={(id) => {
+                const updated = customPresets.filter(p => p.id !== id);
+                setCustomPresets(updated);
+                localStorage.setItem('customPresets', JSON.stringify(updated));
+                toast.success('Preset deleted');
+              }}
+            />
+          )}
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
+                <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
+                <p className="text-sm">No messages yet</p>
+                <p className="text-xs mt-1">Select models and start chatting</p>
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                      msg.type === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    {msg.type === 'assistant' && msg.model && (
+                      <div className="text-xs text-muted-foreground mb-1 font-medium">
+                        {msg.model}
+                      </div>
+                    )}
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-muted rounded-lg px-3 py-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <ChatFooter
+            selectedModels={selectedModels}
+            showModelSelector={showModelSelector}
+            showPresets={showPresets}
+            showSettings={showSettings}
+            onNewChat={clearChat}
+            onRenameChat={renameChat}
+            onSaveChat={saveConversation}
+            onClearChat={clearChat}
+            onDeleteChat={deleteChat}
+            onShowAnalytics={showAnalyticsPanel}
+            onExport={exportConversation}
+            onSummarizer={handleSummarizer}
+            onToggleModelSelector={() => {
+              setShowPresets(false);
+              setShowModelSelector(!showModelSelector);
+            }}
+            onTogglePresets={() => {
+              setShowPresets(true);
+              setShowModelSelector(true);
+            }}
+            onToggleSettings={() => setShowSettings(!showSettings)}
+            onOpenPresetsSettings={openPresetsSettings}
+            onCloseSettings={() => {
+              setShowSettings(false);
+              setShowModelSelector(false);
+            }}
+            inputMessage={inputMessage}
+            onInputChange={setInputMessage}
+            onSend={handleSend}
+            onAttach={() => {}}
+            isLoading={isLoading}
+            attachments={attachments}
+            onRemoveAttachment={removeAttachment}
+            savedConversations={savedConversations}
+            onLoadConversation={loadConversation}
+            onViewAllSaved={viewAllSaved}
+            archivedCount={archivedConversations.length}
+          />
+        </>
+      )}
+    </motion.div>
     
     {/* Preset Editor Modal */}
     <PresetEditorModal
@@ -762,6 +776,12 @@ export function FloatingChatWindow({
       onDeleteConversation={handleDeleteSavedConversation}
       onUpdateConversation={handleUpdateSavedConversation}
       onImport={handleImportConversations}
+    />
+
+    {/* Keyboard Shortcuts Help */}
+    <KeyboardShortcutsHelp
+      isOpen={showKeyboardHelp}
+      onClose={() => setShowKeyboardHelp(false)}
     />
     </>
   );

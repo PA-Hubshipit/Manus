@@ -55,3 +55,11 @@
 - [ ] Implement auto-growing textarea in ChatFooter
   - Textarea should start at single line height
   - Auto-expand as user types (up to reasonable max height)
+
+
+## Cloud Sync, Analytics & Shortcuts
+- [x] Create database schema for conversations (conversations table)
+- [x] Create tRPC procedures for CRUD operations on conversations
+- [x] Update frontend to sync conversations with database
+- [x] Implement Advanced Analytics with visual charts
+- [x] Implement Keyboard Shortcuts (Ctrl+K for search, Ctrl+S for save)

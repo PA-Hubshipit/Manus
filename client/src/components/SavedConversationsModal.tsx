@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Search, Download, Upload, Trash2, MessageSquare, Archive, Tag, Plus } from 'lucide-react';
+import { useCloudSync } from '@/hooks/useCloudSync';
+import { useAuth } from '@/_core/hooks/useAuth';
+import { X, Search, Download, Upload, Trash2, MessageSquare, Archive, Tag, Plus, Cloud, CloudOff, RefreshCw, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SavedConversation } from './ChatFooter';
@@ -30,6 +32,18 @@ export function SavedConversationsModal({
   const [activeTab, setActiveTab] = useState<'all' | 'saved' | 'archived'>('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  
+  const { user, isAuthenticated, getLoginUrl } = useAuth();
+  const {
+    isSyncing,
+    cloudRecentConversations,
+    cloudArchivedConversations,
+    syncAllToCloud,
+    refreshFromCloud,
+  } = useCloudSync({
+    onSyncComplete: () => toast.success('Synced with cloud'),
+    onSyncError: (error) => toast.error(`Sync failed: ${error.message}`),
+  });
 
   // Extract all unique tags from conversations
   useEffect(() => {
@@ -205,6 +219,60 @@ export function SavedConversationsModal({
               <Download className="h-4 w-4" />
               Export
             </Button>
+            
+            {/* Cloud Sync Button */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshFromCloud()}
+                  disabled={isSyncing}
+                  className="gap-2"
+                  title="Refresh from cloud"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    const localRecent = savedConversations.map(c => ({
+                      id: c.id,
+                      title: c.title,
+                      messages: c.messages || [],
+                      models: c.models || [],
+                      tags: (c as any).tags,
+                      timestamp: c.timestamp,
+                    }));
+                    const localArchived = archivedConversations.map(c => ({
+                      id: c.id,
+                      title: c.title,
+                      messages: c.messages || [],
+                      models: c.models || [],
+                      tags: (c as any).tags,
+                      timestamp: c.timestamp,
+                    }));
+                    syncAllToCloud(localRecent, localArchived);
+                  }}
+                  disabled={isSyncing}
+                  className="gap-2"
+                >
+                  <Cloud className={`h-4 w-4 ${isSyncing ? 'animate-pulse' : ''}`} />
+                  {isSyncing ? 'Syncing...' : 'Sync to Cloud'}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = getLoginUrl()}
+                className="gap-2"
+              >
+                <LogIn className="h-4 w-4" />
+                Login to Sync
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-5 w-5" />
             </Button>
