@@ -89,3 +89,10 @@
 - [x] Fix Presets button to show presets from Settings → Presets Setting
 - [x] Now shows both built-in presets (Coding Team, Creative Writers, etc.) AND custom presets
 - [x] Clicking a preset applies the models correctly (verified: Coding Team applies GPT-4, DeepSeek Coder, Codestral)
+
+## Quick Presets "+ New" Button Fix
+- [x] Change "+ New" button to a dropdown selector instead of opening preset editor
+- [x] Dropdown shows available presets from Settings → Presets Setting (both built-in and custom)
+- [x] Selecting a preset from dropdown adds it to Quick Presets list
+- [x] Only shows presets not already in Quick Presets list (already-added presets are disabled)
+- [x] Remove button (trash icon) allows removing presets from Quick Presets

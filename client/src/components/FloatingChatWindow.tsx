@@ -1,6 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useDragControls, PanInfo } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, Plus, Pencil, Trash2 } from 'lucide-react';
 import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
@@ -811,46 +819,86 @@ export function FloatingChatWindow({
               <div className="mb-3 p-3 bg-background rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium">Quick Presets</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setEditingPreset(null);
-                      setShowPresetEditor(true);
-                    }}
-                    className="h-7 px-2 text-xs gap-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                    New
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        New
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Add Preset</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Built-in Presets</DropdownMenuLabel>
+                      {Object.entries(MODEL_PRESETS).map(([key, preset]) => {
+                        // Check if already in quickPresets
+                        const alreadyAdded = quickPresets.some(qp => qp.sourceId === key && qp.sourceType === 'built-in');
+                        return (
+                          <DropdownMenuItem
+                            key={`add-builtin-${key}`}
+                            disabled={alreadyAdded}
+                            onClick={() => {
+                              if (!alreadyAdded) {
+                                const newQuickPresets = addQuickPresets(quickPresets, [{
+                                  sourceId: key,
+                                  sourceType: 'built-in',
+                                  name: preset.name,
+                                  models: preset.models
+                                }]);
+                                setQuickPresets(newQuickPresets);
+                                saveQuickPresets(newQuickPresets);
+                                toast.success(`Added "${preset.name}" to Quick Presets`);
+                              }
+                            }}
+                          >
+                            <span className="flex-1">{preset.name}</span>
+                            <span className="text-xs text-muted-foreground">{preset.models.length} models</span>
+                            {alreadyAdded && <span className="text-xs text-muted-foreground ml-1">(added)</span>}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                      {customPresets.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Custom Presets</DropdownMenuLabel>
+                          {customPresets.map((preset) => {
+                            const alreadyAdded = quickPresets.some(qp => qp.sourceId === preset.id && qp.sourceType === 'custom');
+                            return (
+                              <DropdownMenuItem
+                                key={`add-custom-${preset.id}`}
+                                disabled={alreadyAdded}
+                                onClick={() => {
+                                  if (!alreadyAdded) {
+                                    const newQuickPresets = addQuickPresets(quickPresets, [{
+                                      sourceId: preset.id,
+                                      sourceType: 'custom',
+                                      name: preset.name,
+                                      models: preset.models
+                                    }]);
+                                    setQuickPresets(newQuickPresets);
+                                    saveQuickPresets(newQuickPresets);
+                                    toast.success(`Added "${preset.name}" to Quick Presets`);
+                                  }
+                                }}
+                              >
+                                <span className="flex-1">{preset.name}</span>
+                                <span className="text-xs text-muted-foreground">{preset.models.length} models</span>
+                                {alreadyAdded && <span className="text-xs text-muted-foreground ml-1">(added)</span>}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="space-y-2">
-                  {/* Built-in Presets */}
-                  {Object.entries(MODEL_PRESETS).map(([key, preset]) => {
-                    // Check if there's a custom preset with the same name that overrides it
-                    const customOverride = customPresets.find(cp => cp.name === preset.name);
-                    if (customOverride) return null; // Skip if overridden by custom preset
-                    
-                    return (
-                      <div key={`builtin-${key}`} className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => applyPreset({ name: preset.name, models: preset.models })}
-                          className="flex-1 justify-between text-xs h-8"
-                        >
-                          <span className="flex-1 text-left truncate">
-                            {preset.name}
-                          </span>
-                          <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
-                            {preset.models.length}
-                          </span>
-                        </Button>
-                      </div>
-                    );
-                  })}
-                  {/* Custom Presets */}
-                  {customPresets.map((preset) => (
+                  {/* Quick Presets from quickPresets state */}
+                  {quickPresets.map((preset) => (
                     <div key={preset.id} className="flex items-center gap-1">
                       <Button
                         variant="outline"
@@ -869,30 +917,23 @@ export function FloatingChatWindow({
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setEditingPreset(preset);
-                          setShowPresetEditor(true);
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Edit preset"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const updated = customPresets.filter(p => p.id !== preset.id);
-                          setCustomPresets(updated);
-                          localStorage.setItem('customPresets', JSON.stringify(updated));
-                          toast.success('Preset deleted');
+                          const updated = removeQuickPreset(quickPresets, preset.id);
+                          setQuickPresets(updated);
+                          saveQuickPresets(updated);
+                          toast.success('Preset removed from Quick Presets');
                         }}
                         className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        title="Delete preset"
+                        title="Remove from Quick Presets"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   ))}
+                  {quickPresets.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      No quick presets. Click "+ New" to add presets.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
