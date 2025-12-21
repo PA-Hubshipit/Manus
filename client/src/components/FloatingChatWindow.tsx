@@ -821,82 +821,15 @@ export function FloatingChatWindow({
               <div className="mb-3 p-3 bg-background rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium">Quick Presets</h3>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        New
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 z-[9999]" sideOffset={5}>
-                      <DropdownMenuLabel>Add Preset</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Built-in Presets</DropdownMenuLabel>
-                      {Object.entries(MODEL_PRESETS).map(([key, preset]) => {
-                        // Check if already in quickPresets
-                        const alreadyAdded = quickPresets.some(qp => qp.sourceId === key && qp.sourceType === 'built-in');
-                        return (
-                          <DropdownMenuItem
-                            key={`add-builtin-${key}`}
-                            disabled={alreadyAdded}
-                            onClick={() => {
-                              if (!alreadyAdded) {
-                                const newQuickPresets = addQuickPresets(quickPresets, [{
-                                  sourceId: key,
-                                  sourceType: 'built-in',
-                                  name: preset.name,
-                                  models: preset.models
-                                }]);
-                                setQuickPresets(newQuickPresets);
-                                saveQuickPresets(newQuickPresets);
-                                toast.success(`Added "${preset.name}" to Quick Presets`);
-                              }
-                            }}
-                          >
-                            <span className="flex-1">{preset.name}</span>
-                            <span className="text-xs text-muted-foreground">{preset.models.length} models</span>
-                            {alreadyAdded && <span className="text-xs text-muted-foreground ml-1">(added)</span>}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                      {customPresets.length > 0 && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Custom Presets</DropdownMenuLabel>
-                          {customPresets.map((preset) => {
-                            const alreadyAdded = quickPresets.some(qp => qp.sourceId === preset.id && qp.sourceType === 'custom');
-                            return (
-                              <DropdownMenuItem
-                                key={`add-custom-${preset.id}`}
-                                disabled={alreadyAdded}
-                                onClick={() => {
-                                  if (!alreadyAdded) {
-                                    const newQuickPresets = addQuickPresets(quickPresets, [{
-                                      sourceId: preset.id,
-                                      sourceType: 'custom',
-                                      name: preset.name,
-                                      models: preset.models
-                                    }]);
-                                    setQuickPresets(newQuickPresets);
-                                    saveQuickPresets(newQuickPresets);
-                                    toast.success(`Added "${preset.name}" to Quick Presets`);
-                                  }
-                                }}
-                              >
-                                <span className="flex-1">{preset.name}</span>
-                                <span className="text-xs text-muted-foreground">{preset.models.length} models</span>
-                                {alreadyAdded && <span className="text-xs text-muted-foreground ml-1">(added)</span>}
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPresetSelection(true)}
+                    className="h-7 px-2 text-xs gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New
+                  </Button>
                 </div>
                 <div className="space-y-1">
                   {/* Quick Presets from quickPresets state with drag-and-drop */}
@@ -1183,6 +1116,11 @@ export function FloatingChatWindow({
       customPresets={customPresets}
       quickPresets={quickPresets}
       onAdd={handleAddQuickPresets}
+      onCreateNew={() => {
+        setShowPresetSelection(false);
+        setEditingPreset(null);
+        setShowPresetEditor(true);
+      }}
     />
 
     {/* Saved Conversations Modal */}

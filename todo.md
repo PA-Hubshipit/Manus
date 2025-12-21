@@ -112,3 +112,12 @@
 ## Bug Fix: "+ New" Dropdown Not Responding
 - [x] Fix "+ New" dropdown not opening on mobile/published version
   - Fixed z-index from z-50 to z-[9999] in DropdownMenuContent component
+
+
+## Quick Presets "+ New" Modal Dialog Enhancement
+- [x] Replace dropdown menu with modal dialog for "+ New" button
+- [x] Add dropdown selector inside modal to select presets
+- [x] Show selected presets list below dropdown
+- [x] Add search/filter in the dropdown
+- [x] Add preset categories (coding, writing, research) with collapsible sections
+- [x] Add "Create New Preset" option at the bottom of modal

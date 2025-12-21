@@ -1,11 +1,31 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Search, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { MODEL_PRESETS } from '@/lib/ai-providers';
 import { CustomPreset } from './PresetsManagementModal';
 import { QuickPreset } from '@/lib/quick-presets';
+
+// Define preset categories
+const PRESET_CATEGORIES = {
+  coding: {
+    name: 'Coding',
+    presetIds: ['coding'] // matches MODEL_PRESETS keys
+  },
+  writing: {
+    name: 'Writing',
+    presetIds: ['creative']
+  },
+  research: {
+    name: 'Research',
+    presetIds: ['research']
+  },
+  general: {
+    name: 'General',
+    presetIds: ['general', 'fast']
+  }
+};
 
 interface PresetSelectionDialogProps {
   open: boolean;
@@ -13,6 +33,7 @@ interface PresetSelectionDialogProps {
   customPresets: CustomPreset[];
   quickPresets: QuickPreset[];
   onAdd: (presets: Array<{ sourceId: string; sourceType: 'built-in' | 'custom'; name: string; models: string[] }>) => void;
+  onCreateNew?: () => void;
 }
 
 export function PresetSelectionDialog({
@@ -20,10 +41,12 @@ export function PresetSelectionDialog({
   onOpenChange,
   customPresets,
   quickPresets,
-  onAdd
+  onAdd,
+  onCreateNew
 }: PresetSelectionDialogProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['coding', 'writing', 'research', 'general', 'custom']));
 
   // Get all available presets (built-in + custom)
   const builtInPresets = Object.entries(MODEL_PRESETS).map(([key, preset]) => ({
@@ -50,8 +73,60 @@ export function PresetSelectionDialog({
     return !alreadyInQuick;
   });
 
-  const handleSelectPreset = (presetId: string) => {
-    setSelectedPresetId(presetId);
+  // Filter by search query
+  const filteredPresets = useMemo(() => {
+    if (!searchQuery.trim()) return availablePresets;
+    const query = searchQuery.toLowerCase();
+    return availablePresets.filter(preset => 
+      preset.name.toLowerCase().includes(query) ||
+      preset.models.some(model => model.toLowerCase().includes(query))
+    );
+  }, [availablePresets, searchQuery]);
+
+  // Group presets by category
+  const presetsByCategory = useMemo(() => {
+    const result: Record<string, typeof filteredPresets> = {};
+    
+    // Initialize categories
+    Object.keys(PRESET_CATEGORIES).forEach(cat => {
+      result[cat] = [];
+    });
+    result['custom'] = [];
+
+    filteredPresets.forEach(preset => {
+      if (preset.type === 'custom') {
+        result['custom'].push(preset);
+      } else {
+        // Find which category this built-in preset belongs to
+        let found = false;
+        for (const [catKey, catData] of Object.entries(PRESET_CATEGORIES)) {
+          if (catData.presetIds.includes(preset.id)) {
+            result[catKey].push(preset);
+            found = true;
+            break;
+          }
+        }
+        // If not categorized, put in general
+        if (!found) {
+          result['general'].push(preset);
+        }
+      }
+    });
+
+    return result;
+  }, [filteredPresets]);
+
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  const togglePreset = (presetId: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(presetId)) {
       newSelected.delete(presetId);
@@ -59,8 +134,6 @@ export function PresetSelectionDialog({
       newSelected.add(presetId);
     }
     setSelectedIds(newSelected);
-    // Reset dropdown after selection
-    setTimeout(() => setSelectedPresetId(''), 100);
   };
 
   const handleAdd = () => {
@@ -75,111 +148,198 @@ export function PresetSelectionDialog({
 
     onAdd(presetsToAdd);
     setSelectedIds(new Set());
-    setSelectedPresetId('');
+    setSearchQuery('');
     onOpenChange(false);
   };
 
-  // Removed readonly workaround - now input works directly
+  const handleClose = () => {
+    setSelectedIds(new Set());
+    setSearchQuery('');
+    onOpenChange(false);
+  };
+
+  const handleCreateNew = () => {
+    handleClose();
+    if (onCreateNew) {
+      onCreateNew();
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Add Presets to Quick Presets</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 min-h-[400px]">
-          {/* Dropdown Selector */}
-          <div>
-            {availablePresets.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
-                All presets are already in Quick Presets
-              </div>
-            ) : (
-              <Select value={selectedPresetId} onValueChange={handleSelectPreset}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a preset to add..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePresets.map(preset => (
-                    <SelectItem key={preset.id} value={preset.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{preset.name}</span>
-                        <span className="text-xs text-muted-foreground">({preset.models.length} models)</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+        <div className="flex flex-col gap-4 flex-1 min-h-0">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search presets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
 
-          {/* Selected Presets List */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {selectedIds.size === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                Select presets from the dropdown above
+          {/* Presets List with Categories */}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-2 min-h-[300px]">
+            {filteredPresets.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
+                {searchQuery ? 'No presets match your search' : 'All presets are already in Quick Presets'}
               </div>
             ) : (
-              Array.from(selectedIds).map(id => {
-                const preset = allPresets.find(p => p.id === id);
-                if (!preset) return null;
-                return (
-                  <div
-                    key={preset.id}
-                    className="w-full p-4 rounded-lg border border-primary bg-primary/5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
+              <>
+                {/* Built-in Categories */}
+                {Object.entries(PRESET_CATEGORIES).map(([catKey, catData]) => {
+                  const categoryPresets = presetsByCategory[catKey] || [];
+                  if (categoryPresets.length === 0) return null;
+
+                  const isExpanded = expandedCategories.has(catKey);
+                  const selectedCount = categoryPresets.filter(p => selectedIds.has(p.id)).length;
+
+                  return (
+                    <div key={catKey} className="border rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => toggleCategory(catKey)}
+                        className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors"
+                      >
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{preset.name}</h3>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                            {preset.type === 'built-in' ? 'Built-in' : 'Custom'}
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                          <span className="font-medium">{catData.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({categoryPresets.length} preset{categoryPresets.length !== 1 ? 's' : ''})
                           </span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {preset.models.map((model, idx) => (
-                            <span
-                              key={idx}
-                              className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground"
+                        {selectedCount > 0 && (
+                          <span className="text-xs px-2 py-0.5 bg-primary text-primary-foreground rounded-full">
+                            {selectedCount} selected
+                          </span>
+                        )}
+                      </button>
+                      {isExpanded && (
+                        <div className="p-2 space-y-1">
+                          {categoryPresets.map(preset => (
+                            <button
+                              key={preset.id}
+                              onClick={() => togglePreset(preset.id)}
+                              className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                                selectedIds.has(preset.id)
+                                  ? 'bg-primary/10 border border-primary'
+                                  : 'bg-background hover:bg-muted border border-transparent'
+                              }`}
                             >
-                              {model}
-                            </span>
+                              <div className="flex-1 text-left">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{preset.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    ({preset.models.length} models)
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                                selectedIds.has(preset.id)
+                                  ? 'bg-primary border-primary text-primary-foreground'
+                                  : 'border-input'
+                              }`}>
+                                {selectedIds.has(preset.id) && <span className="text-xs">✓</span>}
+                              </div>
+                            </button>
                           ))}
                         </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newSelected = new Set(selectedIds);
-                          newSelected.delete(id);
-                          setSelectedIds(newSelected);
-                        }}
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                      >
-                        ✕
-                      </button>
+                      )}
                     </div>
+                  );
+                })}
+
+                {/* Custom Presets Category */}
+                {(presetsByCategory['custom'] || []).length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleCategory('custom')}
+                      className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {expandedCategories.has('custom') ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        <span className="font-medium">Custom Presets</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({presetsByCategory['custom'].length} preset{presetsByCategory['custom'].length !== 1 ? 's' : ''})
+                        </span>
+                      </div>
+                      {presetsByCategory['custom'].filter(p => selectedIds.has(p.id)).length > 0 && (
+                        <span className="text-xs px-2 py-0.5 bg-primary text-primary-foreground rounded-full">
+                          {presetsByCategory['custom'].filter(p => selectedIds.has(p.id)).length} selected
+                        </span>
+                      )}
+                    </button>
+                    {expandedCategories.has('custom') && (
+                      <div className="p-2 space-y-1">
+                        {presetsByCategory['custom'].map(preset => (
+                          <button
+                            key={preset.id}
+                            onClick={() => togglePreset(preset.id)}
+                            className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                              selectedIds.has(preset.id)
+                                ? 'bg-primary/10 border border-primary'
+                                : 'bg-background hover:bg-muted border border-transparent'
+                            }`}
+                          >
+                            <div className="flex-1 text-left">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{preset.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  ({preset.models.length} models)
+                                </span>
+                              </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                              selectedIds.has(preset.id)
+                                ? 'bg-primary border-primary text-primary-foreground'
+                                : 'border-input'
+                            }`}>
+                              {selectedIds.has(preset.id) && <span className="text-xs">✓</span>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                );
-              })
+                )}
+              </>
             )}
           </div>
 
+          {/* Create New Preset Link */}
+          {onCreateNew && (
+            <div className="border-t pt-3">
+              <button
+                onClick={handleCreateNew}
+                className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Create New Preset
+              </button>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedIds(new Set());
-                setSelectedPresetId('');
-                onOpenChange(false);
-              }}
-            >
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             {selectedIds.size > 0 && (
               <Button onClick={handleAdd}>
-                Add {selectedIds.size} {selectedIds.size === 1 ? 'preset' : 'presets'} to Quick Presets
+                Add {selectedIds.size} {selectedIds.size === 1 ? 'preset' : 'presets'}
               </Button>
             )}
           </div>
