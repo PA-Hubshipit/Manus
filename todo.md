@@ -121,3 +121,12 @@
 - [x] Add search/filter in the dropdown
 - [x] Add preset categories (coding, writing, research) with collapsible sections
 - [x] Add "Create New Preset" option at the bottom of modal
+
+
+## Preset Enhancements (6 Features)
+- [x] Add preset descriptions - Show brief description for each preset explaining use case
+- [x] Add favorite/pin presets - Star frequently used presets to appear at top
+- [x] Add preset import/export - Share presets via JSON export/import
+- [x] Add JSDoc comments to PresetSelectionDialog.tsx
+- [x] Create Vitest tests for preset selection logic (26 tests passing)
+- [x] Add keyboard navigation in modal (arrow keys)

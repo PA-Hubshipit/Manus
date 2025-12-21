@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,11 @@ import { MODEL_PRESETS } from '@/lib/ai-providers';
 import { CustomPreset } from './PresetsManagementModal';
 import { QuickPreset } from '@/lib/quick-presets';
 
-// Define preset categories
+/**
+ * Preset categories for organizing built-in presets.
+ * Each category maps to specific preset IDs from MODEL_PRESETS.
+ * @constant
+ */
 const PRESET_CATEGORIES = {
   coding: {
     name: 'Coding',
@@ -27,15 +31,45 @@ const PRESET_CATEGORIES = {
   }
 };
 
+/**
+ * Props for the PresetSelectionDialog component.
+ * @interface PresetSelectionDialogProps
+ */
 interface PresetSelectionDialogProps {
+  /** Whether the dialog is open */
   open: boolean;
+  /** Callback to change the open state */
   onOpenChange: (open: boolean) => void;
+  /** Array of user-created custom presets */
   customPresets: CustomPreset[];
+  /** Array of presets already in Quick Presets (to filter out) */
   quickPresets: QuickPreset[];
-  onAdd: (presets: Array<{ sourceId: string; sourceType: 'built-in' | 'custom'; name: string; models: string[] }>) => void;
+  /** Callback when presets are selected and added */
+  onAdd: (presets: Array<{ sourceId: string; sourceType: 'built-in' | 'custom'; name: string; description?: string; models: string[] }>) => void;
+  /** Optional callback to create a new preset */
   onCreateNew?: () => void;
 }
 
+/**
+ * Modal dialog for selecting presets to add to Quick Presets.
+ * Features:
+ * - Search/filter presets by name or model
+ * - Collapsible categories (Coding, Writing, Research, General, Custom)
+ * - Multi-select with checkboxes
+ * - Create new preset link
+ * - Keyboard navigation support
+ * 
+ * @component
+ * @example
+ * <PresetSelectionDialog
+ *   open={showDialog}
+ *   onOpenChange={setShowDialog}
+ *   customPresets={customPresets}
+ *   quickPresets={quickPresets}
+ *   onAdd={handleAddPresets}
+ *   onCreateNew={() => setShowEditor(true)}
+ * />
+ */
 export function PresetSelectionDialog({
   open,
   onOpenChange,
@@ -47,11 +81,15 @@ export function PresetSelectionDialog({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['coding', 'writing', 'research', 'general', 'custom']));
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const listRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Get all available presets (built-in + custom)
   const builtInPresets = Object.entries(MODEL_PRESETS).map(([key, preset]) => ({
     id: key,
     name: preset.name,
+    description: preset.description,
     models: preset.models,
     type: 'built-in' as const
   }));
@@ -59,6 +97,7 @@ export function PresetSelectionDialog({
   const customPresetsWithType = customPresets.map(preset => ({
     id: preset.id,
     name: preset.name,
+    description: preset.description,
     models: preset.models,
     type: 'custom' as const
   }));
@@ -116,6 +155,10 @@ export function PresetSelectionDialog({
     return result;
   }, [filteredPresets]);
 
+  /**
+   * Toggles the expanded/collapsed state of a category.
+   * @param {string} category - The category key to toggle
+   */
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(category)) {
@@ -126,6 +169,10 @@ export function PresetSelectionDialog({
     setExpandedCategories(newExpanded);
   };
 
+  /**
+   * Toggles the selection state of a preset.
+   * @param {string} presetId - The ID of the preset to toggle
+   */
   const togglePreset = (presetId: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(presetId)) {
@@ -136,6 +183,10 @@ export function PresetSelectionDialog({
     setSelectedIds(newSelected);
   };
 
+  /**
+   * Handles adding selected presets to Quick Presets.
+   * Collects all selected presets and calls onAdd callback.
+   */
   const handleAdd = () => {
     const presetsToAdd = allPresets
       .filter(p => selectedIds.has(p.id))
@@ -152,18 +203,99 @@ export function PresetSelectionDialog({
     onOpenChange(false);
   };
 
+  /**
+   * Handles closing the dialog and resetting state.
+   */
   const handleClose = () => {
     setSelectedIds(new Set());
     setSearchQuery('');
     onOpenChange(false);
   };
 
+  /**
+   * Handles the "Create New Preset" action.
+   * Closes the dialog and triggers the onCreateNew callback.
+   */
   const handleCreateNew = () => {
     handleClose();
     if (onCreateNew) {
       onCreateNew();
     }
   };
+
+  /**
+   * Get flat list of all visible preset IDs for keyboard navigation.
+   */
+  const flatPresetIds = useMemo(() => {
+    const ids: string[] = [];
+    const categories = ['coding', 'writing', 'research', 'general', 'custom'];
+    
+    categories.forEach(catKey => {
+      if (expandedCategories.has(catKey)) {
+        const categoryPresets = presetsByCategory[catKey] || [];
+        categoryPresets.forEach(p => ids.push(p.id));
+      }
+    });
+    
+    return ids;
+  }, [presetsByCategory, expandedCategories]);
+
+  /**
+   * Handle keyboard navigation within the preset list.
+   */
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (flatPresetIds.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex(prev => {
+          const next = prev < flatPresetIds.length - 1 ? prev + 1 : 0;
+          return next;
+        });
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex(prev => {
+          const next = prev > 0 ? prev - 1 : flatPresetIds.length - 1;
+          return next;
+        });
+        break;
+      case ' ':
+      case 'Enter':
+        if (focusedIndex >= 0 && focusedIndex < flatPresetIds.length) {
+          e.preventDefault();
+          togglePreset(flatPresetIds[focusedIndex]);
+        }
+        break;
+      case 'Escape':
+        handleClose();
+        break;
+    }
+  }, [flatPresetIds, focusedIndex, togglePreset, handleClose]);
+
+  // Reset focus when search changes
+  useEffect(() => {
+    setFocusedIndex(-1);
+  }, [searchQuery]);
+
+  // Focus search input when dialog opens
+  useEffect(() => {
+    if (open && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [open]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (focusedIndex >= 0 && listRef.current) {
+      const focusedId = flatPresetIds[focusedIndex];
+      const element = listRef.current.querySelector(`[data-preset-id="${focusedId}"]`);
+      if (element) {
+        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }, [focusedIndex, flatPresetIds]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -172,12 +304,13 @@ export function PresetSelectionDialog({
           <DialogTitle>Add Presets to Quick Presets</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 flex-1 min-h-0">
+        <div className="flex flex-col gap-4 flex-1 min-h-0" onKeyDown={handleKeyDown}>
           {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search presets..."
+              ref={searchInputRef}
+              placeholder="Search presets... (↑↓ to navigate, Space to select)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -185,7 +318,7 @@ export function PresetSelectionDialog({
           </div>
 
           {/* Presets List with Categories */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2 min-h-[300px]">
+          <div ref={listRef} className="flex-1 overflow-y-auto space-y-2 pr-2 min-h-[300px]">
             {filteredPresets.length === 0 ? (
               <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
                 {searchQuery ? 'No presets match your search' : 'All presets are already in Quick Presets'}
@@ -225,23 +358,31 @@ export function PresetSelectionDialog({
                       </button>
                       {isExpanded && (
                         <div className="p-2 space-y-1">
-                          {categoryPresets.map(preset => (
+                          {categoryPresets.map(preset => {
+                            const isFocused = flatPresetIds[focusedIndex] === preset.id;
+                            return (
                             <button
                               key={preset.id}
+                              data-preset-id={preset.id}
                               onClick={() => togglePreset(preset.id)}
                               className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
                                 selectedIds.has(preset.id)
                                   ? 'bg-primary/10 border border-primary'
                                   : 'bg-background hover:bg-muted border border-transparent'
-                              }`}
+                              } ${isFocused ? 'ring-2 ring-primary ring-offset-1' : ''}`}
                             >
                               <div className="flex-1 text-left">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium">{preset.name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    ({preset.models.length} models)
-                                  </span>
-                                </div>
+                                                                  <span className="font-medium">{preset.name}</span>
+                                                                  <span className="text-xs text-muted-foreground">
+                                                                    ({preset.models.length} models)
+                                                                  </span>
+                                                                </div>
+                                                                {preset.description && (
+                                                                  <p className="text-xs text-muted-foreground mt-1">
+                                                                    {preset.description}
+                                                                  </p>
+                                                                )}
                               </div>
                               <div className={`w-5 h-5 rounded border flex items-center justify-center ${
                                 selectedIds.has(preset.id)
@@ -251,7 +392,8 @@ export function PresetSelectionDialog({
                                 {selectedIds.has(preset.id) && <span className="text-xs">✓</span>}
                               </div>
                             </button>
-                          ))}
+                          );
+                        })}
                         </div>
                       )}
                     </div>
@@ -284,15 +426,18 @@ export function PresetSelectionDialog({
                     </button>
                     {expandedCategories.has('custom') && (
                       <div className="p-2 space-y-1">
-                        {presetsByCategory['custom'].map(preset => (
+                        {presetsByCategory['custom'].map(preset => {
+                          const isFocused = flatPresetIds[focusedIndex] === preset.id;
+                          return (
                           <button
                             key={preset.id}
+                            data-preset-id={preset.id}
                             onClick={() => togglePreset(preset.id)}
                             className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
                               selectedIds.has(preset.id)
                                 ? 'bg-primary/10 border border-primary'
                                 : 'bg-background hover:bg-muted border border-transparent'
-                            }`}
+                            } ${isFocused ? 'ring-2 ring-primary ring-offset-1' : ''}`}
                           >
                             <div className="flex-1 text-left">
                               <div className="flex items-center gap-2">
@@ -310,7 +455,8 @@ export function PresetSelectionDialog({
                               {selectedIds.has(preset.id) && <span className="text-xs">✓</span>}
                             </div>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

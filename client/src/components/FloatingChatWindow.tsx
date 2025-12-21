@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check } from 'lucide-react';
+import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check, Star, Download, Upload } from 'lucide-react';
 import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
 import { PresetsPanel } from './PresetsPanel';
@@ -23,7 +23,7 @@ import { SavedConversationsModal } from './SavedConversationsModal';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { useKeyboardShortcuts, SHORTCUT_KEYS } from '@/hooks/useKeyboardShortcuts';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
-import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets } from '@/lib/quick-presets';
+import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, exportPresets, importPresets } from '@/lib/quick-presets';
 import { toast } from 'sonner';
 
 interface Attachment {
@@ -821,15 +821,71 @@ export function FloatingChatWindow({
               <div className="mb-3 p-3 bg-background rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium">Quick Presets</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowPresetSelection(true)}
-                    className="h-7 px-2 text-xs gap-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                    New
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {/* Import button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.json';
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const imported = importPresets(ev.target?.result as string);
+                              if (imported) {
+                                const updated = [...quickPresets, ...imported];
+                                setQuickPresets(updated);
+                                saveQuickPresets(updated);
+                                toast.success(`Imported ${imported.length} preset(s)`);
+                              } else {
+                                toast.error('Invalid preset file');
+                              }
+                            };
+                            reader.readAsText(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                      className="h-7 w-7 p-0"
+                      title="Import presets"
+                    >
+                      <Upload className="h-3 w-3" />
+                    </Button>
+                    {/* Export button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const json = exportPresets(quickPresets);
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `presets-${new Date().toISOString().split('T')[0]}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        toast.success('Presets exported');
+                      }}
+                      className="h-7 w-7 p-0"
+                      title="Export presets"
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                    {/* New button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPresetSelection(true)}
+                      className="h-7 px-2 text-xs gap-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      New
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   {/* Quick Presets from quickPresets state with drag-and-drop */}
@@ -908,16 +964,23 @@ export function FloatingChatWindow({
                             setEditingQuickPresetId(preset.id);
                             setEditingQuickPresetName(preset.name);
                           }}
-                          className="flex-1 justify-between text-xs h-8"
-                          title="Double-click to rename"
+                          className="flex-1 justify-between text-xs h-8 group relative"
+                          title={preset.description || 'Double-click to rename'}
                         >
-                          <span className="flex-1 text-left truncate">
+                          <span className="flex items-center gap-1 flex-1 text-left truncate">
+                            {preset.isFavorite && <Star className="h-3 w-3 text-yellow-500 fill-current flex-shrink-0" />}
                             {preset.name}
                             {preset.isModified && <span className="ml-1 text-muted-foreground">*</span>}
                           </span>
                           <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
                             {preset.models.length}
                           </span>
+                          {/* Description tooltip on hover */}
+                          {preset.description && (
+                            <span className="absolute -bottom-8 left-0 right-0 bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
+                              {preset.description}
+                            </span>
+                          )}
                         </Button>
                       )}
                       
@@ -936,6 +999,22 @@ export function FloatingChatWindow({
                           <Pencil className="h-3 w-3" />
                         </Button>
                       )}
+                      
+                      {/* Favorite button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const updated = toggleFavorite(quickPresets, preset.id);
+                          setQuickPresets(updated);
+                          saveQuickPresets(updated);
+                          toast.success(preset.isFavorite ? 'Removed from favorites' : 'Added to favorites');
+                        }}
+                        className={`h-8 w-8 p-0 ${preset.isFavorite ? 'text-yellow-500' : ''}`}
+                        title={preset.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <Star className={`h-3 w-3 ${preset.isFavorite ? 'fill-current' : ''}`} />
+                      </Button>
                       
                       {/* Remove button */}
                       <Button

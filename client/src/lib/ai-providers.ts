@@ -89,22 +89,27 @@ export const AI_PROVIDERS = {
 export const MODEL_PRESETS = {
   'coding': {
     name: 'Coding Team',
+    description: 'Best for code generation, debugging, and technical problem-solving',
     models: ['openai:GPT-4', 'deepseek:DeepSeek Coder', 'mistral:Codestral']
   },
   'creative': {
     name: 'Creative Writers',
+    description: 'Ideal for storytelling, copywriting, and creative content',
     models: ['openai:GPT-4 Turbo', 'anthropic:Claude 3 Opus', 'butterfly:Manus']
   },
   'research': {
     name: 'Research Squad',
+    description: 'Optimized for fact-finding, citations, and in-depth analysis',
     models: ['perplexity:Perplexity Pro', 'google:Gemini Pro', 'anthropic:Claude 3 Sonnet']
   },
   'general': {
     name: 'General Purpose',
+    description: 'Versatile team for everyday tasks and conversations',
     models: ['openai:GPT-4', 'anthropic:Claude 3 Sonnet', 'google:Gemini Pro']
   },
   'fast': {
     name: 'Fast Responders',
+    description: 'Quick responses for simple queries and rapid iteration',
     models: ['openai:GPT-3.5 Turbo', 'anthropic:Claude 3 Haiku', 'google:Gemini Nano']
   }
 };
