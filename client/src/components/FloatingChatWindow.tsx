@@ -832,7 +832,7 @@ export function FloatingChatWindow({
                         New
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuContent align="end" className="w-56 z-[9999]" sideOffset={5}>
                       <DropdownMenuLabel>Add Preset</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Built-in Presets</DropdownMenuLabel>

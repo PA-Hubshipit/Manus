@@ -108,3 +108,7 @@
   - Drag handle (grip icon) on left side of each preset
   - Drag and drop to reorder presets
   - Order persists to localStorage
+
+## Bug Fix: "+ New" Dropdown Not Responding
+- [x] Fix "+ New" dropdown not opening on mobile/published version
+  - Fixed z-index from z-50 to z-[9999] in DropdownMenuContent component
