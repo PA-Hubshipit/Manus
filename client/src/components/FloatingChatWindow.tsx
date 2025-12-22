@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check, Star, Download, Upload } from 'lucide-react';
+import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check, Star, Download, Upload, Share2, BarChart2, Layout } from 'lucide-react';
 import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
 import { PresetsPanel } from './PresetsPanel';
@@ -21,9 +21,10 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { PresetSelectionDialog } from './PresetSelectionDialog';
 import { SavedConversationsModal } from './SavedConversationsModal';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { PresetTemplatesModal } from './PresetTemplatesModal';
 import { useKeyboardShortcuts, SHORTCUT_KEYS } from '@/hooks/useKeyboardShortcuts';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
-import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, exportPresets, importPresets } from '@/lib/quick-presets';
+import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, exportPresets, importPresets, trackPresetUsage, loadUsageStats, generateShareableUrl, checkUrlForSharedPreset, PRESET_TEMPLATES, getTemplateCategories, createPresetFromTemplate, PresetTemplate } from '@/lib/quick-presets';
 import { toast } from 'sonner';
 
 interface Attachment {
@@ -93,6 +94,8 @@ export function FloatingChatWindow({
   const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
   const [showSavedConversationsModal, setShowSavedConversationsModal] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [usageStats, setUsageStats] = useState(() => loadUsageStats());
   const [windowSize, setWindowSize] = useState({ width: 400, height: 500 });
   const [isResizing, setIsResizing] = useState(false);
   const [snapIndicator, setSnapIndicator] = useState<'left' | 'right' | 'top' | null>(null);
@@ -251,6 +254,30 @@ export function FloatingChatWindow({
       } catch (e) {
         console.error('Failed to parse saved size', e);
       }
+    }
+    
+    // Check URL for shared preset
+    const sharedPreset = checkUrlForSharedPreset();
+    if (sharedPreset) {
+      // Ask user if they want to import the shared preset
+      const confirmImport = window.confirm(
+        `Import shared preset "${sharedPreset.name}" with ${sharedPreset.models.length} models?`
+      );
+      if (confirmImport) {
+        const newPreset = {
+          sourceId: `shared-${Date.now()}`,
+          sourceType: 'custom' as const,
+          name: sharedPreset.name,
+          description: sharedPreset.description,
+          models: sharedPreset.models,
+        };
+        const updated = addQuickPresets(quick, [newPreset]);
+        setQuickPresets(updated);
+        saveQuickPresets(updated);
+        toast.success(`Imported preset: ${sharedPreset.name}`);
+      }
+      // Clear the hash from URL
+      window.history.replaceState(null, '', window.location.pathname);
     }
   }, []);
 
@@ -487,9 +514,14 @@ export function FloatingChatWindow({
     }
   };
 
-  const applyPreset = (preset: { name: string; models: string[] }) => {
+  const applyPreset = (preset: { name: string; models: string[]; id?: string }) => {
     setSelectedModels(preset.models);
     setShowPresets(false);
+    // Track usage if preset has an ID
+    if (preset.id) {
+      const newStats = trackPresetUsage(preset.id);
+      setUsageStats(newStats);
+    }
     toast.success(`Applied preset: ${preset.name}`);
   };
 
@@ -822,6 +854,16 @@ export function FloatingChatWindow({
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium">Quick Presets</h3>
                   <div className="flex items-center gap-1">
+                    {/* Templates button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowTemplates(true)}
+                      className="h-7 w-7 p-0"
+                      title="Browse templates"
+                    >
+                      <Layout className="h-3 w-3" />
+                    </Button>
                     {/* Import button */}
                     <Button
                       variant="ghost"
@@ -958,7 +1000,7 @@ export function FloatingChatWindow({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => applyPreset({ name: preset.name, models: preset.models })}
+                          onClick={() => applyPreset({ id: preset.id, name: preset.name, models: preset.models })}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             setEditingQuickPresetId(preset.id);
@@ -972,8 +1014,16 @@ export function FloatingChatWindow({
                             {preset.name}
                             {preset.isModified && <span className="ml-1 text-muted-foreground">*</span>}
                           </span>
-                          <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
-                            {preset.models.length}
+                          <span className="flex items-center gap-1">
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
+                              {preset.models.length}
+                            </span>
+                            {usageStats[preset.id]?.usageCount > 0 && (
+                              <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-[9px]" title={`Used ${usageStats[preset.id].usageCount} times`}>
+                                <BarChart2 className="h-2.5 w-2.5 inline mr-0.5" />
+                                {usageStats[preset.id].usageCount}
+                              </span>
+                            )}
                           </span>
                           {/* Description tooltip on hover */}
                           {preset.description && (
@@ -1014,6 +1064,21 @@ export function FloatingChatWindow({
                         title={preset.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                       >
                         <Star className={`h-3 w-3 ${preset.isFavorite ? 'fill-current' : ''}`} />
+                      </Button>
+                      
+                      {/* Share button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const shareUrl = generateShareableUrl(preset);
+                          navigator.clipboard.writeText(shareUrl);
+                          toast.success('Share link copied to clipboard!');
+                        }}
+                        className="h-8 w-8 p-0"
+                        title="Copy share link"
+                      >
+                        <Share2 className="h-3 w-3" />
                       </Button>
                       
                       {/* Remove button */}
@@ -1218,6 +1283,19 @@ export function FloatingChatWindow({
     <KeyboardShortcutsHelp
       isOpen={showKeyboardHelp}
       onClose={() => setShowKeyboardHelp(false)}
+    />
+    
+    {/* Preset Templates Modal */}
+    <PresetTemplatesModal
+      open={showTemplates}
+      onOpenChange={setShowTemplates}
+      onAddPreset={(preset) => {
+        const updated = [...quickPresets, preset];
+        setQuickPresets(updated);
+        saveQuickPresets(updated);
+        toast.success(`Added template: ${preset.name}`);
+      }}
+      existingPresetNames={quickPresets.map(p => p.name)}
     />
     </>
   );
