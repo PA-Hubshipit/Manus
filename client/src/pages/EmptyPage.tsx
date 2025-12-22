@@ -68,11 +68,17 @@ export default function EmptyPage() {
     }
 
     const offset = activeWindows.length * 30;
+    // Calculate position based on viewport size
+    const isMobile = window.innerWidth < 768;
+    const actualWidth = Math.min(DEFAULT_WINDOW_SIZE.width, window.innerWidth * 0.9);
+    const maxX = Math.max(0, window.innerWidth - actualWidth);
+    
     const newWindow: ChatWindow = {
       id: `${Date.now()}`,
       position: {
-        x: 100 + offset,
-        y: 100 + offset
+        // On mobile, center horizontally; on desktop, use offset
+        x: isMobile ? Math.min(0, maxX) : Math.min(100 + offset, maxX),
+        y: 60 + offset // Start below header
       },
       size: { ...DEFAULT_WINDOW_SIZE },
       isPinned: false,

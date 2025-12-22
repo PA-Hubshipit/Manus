@@ -143,9 +143,15 @@ export function FloatingChatWindow({
   
   const [position, setPosition] = useState(() => {
     const saved = loadWindowState(id);
+    // Calculate actual rendered width (min of window width and 90vw)
+    const actualWidth = Math.min(DEFAULT_WINDOW_WIDTH, window.innerWidth * 0.9);
+    const isMobile = window.innerWidth < 768;
+    
     if (saved.position) {
+      // On mobile, allow more flexible positioning
+      const maxX = isMobile ? Math.max(0, window.innerWidth - actualWidth) : window.innerWidth - MIN_WINDOW_WIDTH;
       return {
-        x: clamp(saved.position.x, 0, window.innerWidth - MIN_WINDOW_WIDTH),
+        x: clamp(saved.position.x, 0, maxX),
         y: clamp(saved.position.y, 0, window.innerHeight - 100),
       };
     }
@@ -367,7 +373,11 @@ export function FloatingChatWindow({
       const deltaX = moveX - dragStartRef.current.x;
       const deltaY = moveY - dragStartRef.current.y;
       
-      const newX = clamp(dragStartRef.current.posX + deltaX, 0, window.innerWidth - 100);
+      // Calculate actual rendered width for proper clamping
+      const actualWidth = Math.min(windowSize.width, window.innerWidth * 0.9);
+      const maxX = Math.max(0, window.innerWidth - actualWidth);
+      
+      const newX = clamp(dragStartRef.current.posX + deltaX, 0, maxX);
       const newY = clamp(dragStartRef.current.posY + deltaY, 0, window.innerHeight - 50);
       
       setPosition({ x: newX, y: newY });
@@ -385,14 +395,18 @@ export function FloatingChatWindow({
         let finalX = currentPos.x;
         let finalY = currentPos.y;
         
+        // Calculate actual rendered width for proper snapping
+        const actualWidth = Math.min(windowSize.width, window.innerWidth * 0.9);
+        const actualHeight = Math.min(windowSize.height, window.innerHeight * 0.9);
+        
         // Only snap to right edge, not left (better for mobile)
-        if (currentPos.x > window.innerWidth - windowSize.width - SNAP_THRESHOLD) {
-          finalX = Math.max(0, window.innerWidth - windowSize.width);
+        if (currentPos.x > window.innerWidth - actualWidth - SNAP_THRESHOLD) {
+          finalX = Math.max(0, window.innerWidth - actualWidth);
         }
         
         if (currentPos.y < SNAP_THRESHOLD) finalY = 0;
-        else if (currentPos.y > window.innerHeight - windowSize.height - SNAP_THRESHOLD) {
-          finalY = Math.max(0, window.innerHeight - windowSize.height);
+        else if (currentPos.y > window.innerHeight - actualHeight - SNAP_THRESHOLD) {
+          finalY = Math.max(0, window.innerHeight - actualHeight);
         }
         
         saveWindowState(id, { x: finalX, y: finalY }, windowSize);
