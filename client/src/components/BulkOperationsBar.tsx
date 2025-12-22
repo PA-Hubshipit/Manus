@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   X, Trash2, Copy, Star, StarOff, Tag, Download, CheckSquare, Square
@@ -32,7 +32,8 @@ export function BulkOperationsBar({
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   
   const selectedCount = selectedIds.size;
-  const categories = getAllCategories();
+  // Memoize categories to prevent calling localStorage on every render
+  const categories = useMemo(() => getAllCategories(), []);
   
   const handleSelectAll = () => {
     onSelectionChange(new Set(presets.map(p => p.id)));

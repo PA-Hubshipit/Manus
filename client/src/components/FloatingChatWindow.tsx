@@ -213,7 +213,7 @@ export function FloatingChatWindow({
   const [categories, setCategories] = useState<string[]>(() => getAllCategories());
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedPresetIds, setSelectedPresetIds] = useState<Set<string>>(new Set());
-  const [showRecommendations, setShowRecommendations] = useState(true);
+  const [showRecommendations, setShowRecommendations] = useState(false); // Disabled by default for mobile performance
   const [versionHistoryPresetId, setVersionHistoryPresetId] = useState<string>('');
   const [versionHistoryPresetName, setVersionHistoryPresetName] = useState<string>('');
   const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
@@ -1263,37 +1263,6 @@ export function FloatingChatWindow({
                             <Share2 className="h-4 w-4 mr-2" />
                             Copy share link
                           </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <DropdownMenuLabel className="text-xs text-muted-foreground">
-                            <Tag className="h-3 w-3 inline mr-1" />
-                            Category: {preset.category || 'None'}
-                          </DropdownMenuLabel>
-                          
-                          <DropdownMenuItem
-                            onClick={() => {
-                              const updated = setPresetCategory(quickPresets, preset.id, undefined);
-                              setQuickPresets(updated);
-                              saveQuickPresets(updated);
-                            }}
-                          >
-                            <span className={!preset.category ? 'font-medium' : ''}>No Category</span>
-                          </DropdownMenuItem>
-                          
-                          {categories.map((cat) => (
-                            <DropdownMenuItem
-                              key={cat}
-                              onClick={() => {
-                                const updated = setPresetCategory(quickPresets, preset.id, cat);
-                                setQuickPresets(updated);
-                                saveQuickPresets(updated);
-                                toast.success(`Set category to "${cat}"`);
-                              }}
-                            >
-                              <span className={preset.category === cat ? 'font-medium' : ''}>{cat}</span>
-                            </DropdownMenuItem>
-                          ))}
                           
                           <DropdownMenuSeparator />
                           
