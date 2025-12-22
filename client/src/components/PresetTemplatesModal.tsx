@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -10,7 +9,7 @@ import {
   PresetTemplate,
   QuickPreset
 } from '@/lib/quick-presets';
-import { Search, ChevronDown, ChevronRight, Headphones, FileText, Lightbulb, BarChart, Code, Plus, Check } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Headphones, FileText, Lightbulb, BarChart, Code, Plus, Check, X } from 'lucide-react';
 
 interface PresetTemplatesModalProps {
   open: boolean;
@@ -39,25 +38,27 @@ export function PresetTemplatesModal({
   
   const categories = getTemplateCategories();
   
-  const toggleCategory = (categoryId: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId);
-    } else {
-      newExpanded.add(categoryId);
-    }
-    setExpandedCategories(newExpanded);
-  };
+  const toggleCategory = useCallback((categoryId: string) => {
+    setExpandedCategories(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(categoryId)) {
+        newExpanded.delete(categoryId);
+      } else {
+        newExpanded.add(categoryId);
+      }
+      return newExpanded;
+    });
+  }, []);
   
-  const handleAddTemplate = (template: PresetTemplate) => {
+  const handleAddTemplate = useCallback((template: PresetTemplate) => {
     const preset = createPresetFromTemplate(template);
     onAddPreset(preset);
-    setAddedTemplates(new Set([...addedTemplates, template.id]));
-  };
+    setAddedTemplates(prev => new Set([...prev, template.id]));
+  }, [onAddPreset]);
   
-  const isTemplateAdded = (template: PresetTemplate) => {
+  const isTemplateAdded = useCallback((template: PresetTemplate) => {
     return addedTemplates.has(template.id) || existingPresetNames.includes(template.name);
-  };
+  }, [addedTemplates, existingPresetNames]);
   
   const filteredTemplates = searchQuery
     ? PRESET_TEMPLATES.filter(t => 
@@ -66,98 +67,113 @@ export function PresetTemplatesModal({
       )
     : null;
 
+  const handleClose = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Preset Templates</DialogTitle>
-        </DialogHeader>
-        
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search templates..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50" onClick={handleClose}>
+      <div 
+        className="bg-background border border-border rounded-lg shadow-lg w-full max-w-lg max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-semibold">Preset Templates</h2>
+          <Button variant="ghost" size="sm" onClick={handleClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         
-        {/* Templates List */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {filteredTemplates ? (
-            // Search results
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Found {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
-              </p>
-              {filteredTemplates.map((template) => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  isAdded={isTemplateAdded(template)}
-                  onAdd={() => handleAddTemplate(template)}
-                />
-              ))}
-              {filteredTemplates.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">
-                  No templates match your search
+        <div className="flex flex-col gap-3 p-4 flex-1 min-h-0">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          
+          {/* Templates List */}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[200px] max-h-[400px]">
+            {filteredTemplates ? (
+              // Search results
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Found {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
                 </p>
-              )}
-            </div>
-          ) : (
-            // Categories view
-            categories.map((category) => {
-              const templates = getTemplatesByCategory(category.id);
-              const isExpanded = expandedCategories.has(category.id);
-              
-              return (
-                <div key={category.id} className="border rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => toggleCategory(category.id)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      {categoryIcons[category.id]}
-                      <span className="font-medium">{category.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({category.count} templates)
-                      </span>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
+                {filteredTemplates.map((template) => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    isAdded={isTemplateAdded(template)}
+                    onAdd={() => handleAddTemplate(template)}
+                  />
+                ))}
+                {filteredTemplates.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    No templates match your search
+                  </p>
+                )}
+              </div>
+            ) : (
+              // Categories view
+              categories.map((category) => {
+                const templates = getTemplatesByCategory(category.id);
+                const isExpanded = expandedCategories.has(category.id);
+                
+                return (
+                  <div key={category.id} className="border rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleCategory(category.id)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {categoryIcons[category.id]}
+                        <span className="font-medium">{category.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({category.count} templates)
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="border-t p-2 space-y-2">
+                        {templates.map((template) => (
+                          <TemplateCard
+                            key={template.id}
+                            template={template}
+                            isAdded={isTemplateAdded(template)}
+                            onAdd={() => handleAddTemplate(template)}
+                          />
+                        ))}
+                      </div>
                     )}
-                  </button>
-                  
-                  {isExpanded && (
-                    <div className="border-t p-2 space-y-2">
-                      {templates.map((template) => (
-                        <TemplateCard
-                          key={template.id}
-                          template={template}
-                          isAdded={isTemplateAdded(template)}
-                          onAdd={() => handleAddTemplate(template)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
         
         {/* Footer */}
-        <div className="flex justify-end pt-2 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex justify-end p-4 border-t">
+          <Button variant="outline" size="sm" onClick={handleClose}>
             Done
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 

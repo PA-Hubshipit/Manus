@@ -1,10 +1,5 @@
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ArrowUpDown, TrendingUp, Type, Calendar, Star, GripVertical } from 'lucide-react';
 import { PresetSortOption } from '@/lib/quick-presets';
 
@@ -22,39 +17,64 @@ const SORT_OPTIONS: { value: PresetSortOption; label: string; icon: React.ReactN
 ];
 
 /**
- * Dropdown for selecting preset sort order
+ * Custom dropdown for selecting preset sort order (mobile-optimized, no Radix)
  */
 export function PresetSortDropdown({ currentSort, onSortChange }: PresetSortDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const currentOption = SORT_OPTIONS.find(opt => opt.value === currentSort) || SORT_OPTIONS[0];
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const handleSelect = (value: PresetSortOption) => {
+    onSortChange(value);
+    setIsOpen(false);
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs gap-1"
-          title="Sort presets"
-        >
-          <ArrowUpDown className="h-3 w-3" />
-          <span className="hidden sm:inline">{currentOption.label}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        {SORT_OPTIONS.map((option) => (
-          <DropdownMenuItem
-            key={option.value}
-            onClick={() => onSortChange(option.value)}
-            className={`gap-2 ${currentSort === option.value ? 'bg-primary/10' : ''}`}
-          >
-            {option.icon}
-            <span>{option.label}</span>
-            {currentSort === option.value && (
-              <span className="ml-auto text-primary">✓</span>
-            )}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="relative" ref={dropdownRef}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs gap-1"
+        title="Sort presets"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <ArrowUpDown className="h-3 w-3" />
+        <span className="hidden sm:inline">{currentOption.label}</span>
+      </Button>
+      
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-md shadow-lg z-[100] py-1">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleSelect(option.value)}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left ${
+                currentSort === option.value ? 'bg-primary/10' : ''
+              }`}
+            >
+              {option.icon}
+              <span>{option.label}</span>
+              {currentSort === option.value && (
+                <span className="ml-auto text-primary">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

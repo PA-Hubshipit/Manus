@@ -86,7 +86,7 @@ const MIN_WINDOW_HEIGHT = 300;
 const MAX_WINDOW_HEIGHT = 1000;
 const DEFAULT_WINDOW_WIDTH = 400;
 const DEFAULT_WINDOW_HEIGHT = 500;
-const SNAP_THRESHOLD = 30;
+const SNAP_THRESHOLD = 15; // Reduced for better mobile experience
 const EDGE_HANDLE_SIZE = 6;
 
 // ============================================
@@ -385,8 +385,8 @@ export function FloatingChatWindow({
         let finalX = currentPos.x;
         let finalY = currentPos.y;
         
-        if (currentPos.x < SNAP_THRESHOLD) finalX = 0;
-        else if (currentPos.x > window.innerWidth - windowSize.width - SNAP_THRESHOLD) {
+        // Only snap to right edge, not left (better for mobile)
+        if (currentPos.x > window.innerWidth - windowSize.width - SNAP_THRESHOLD) {
           finalX = Math.max(0, window.innerWidth - windowSize.width);
         }
         

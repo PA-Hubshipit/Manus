@@ -176,3 +176,6 @@
 - [x] Fix page freeze on mobile devices (simplified dropdown menu, disabled recommendations by default, added useMemo)
 - [x] Fix page freeze when tapping +New button (replaced Radix Dialog with custom modal)
 - [x] Fix layout issue with Quick Presets title cut off on mobile (added flex-wrap)
+- [x] Fix dialog z-index (opens behind FloatingChatWindow) - increased z-index to 100
+- [x] Fix freezing icons (Sort dropdown and Templates button) - replaced Radix components with custom ones
+- [x] Fix floating window drag behavior (snaps back to left) - removed left edge snapping
