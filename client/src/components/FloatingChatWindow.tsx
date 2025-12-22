@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check, Star, Download, Upload, Share2, BarChart2, Layout, History } from 'lucide-react';
+import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check, Star, Download, Upload, Share2, BarChart2, Layout, History, Search, Tag, Copy, FolderOpen } from 'lucide-react';
 import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
 import { PresetsPanel } from './PresetsPanel';
@@ -27,7 +27,7 @@ import { PresetRecommendations } from './PresetRecommendations';
 import { PresetSortDropdown } from './PresetSortDropdown';
 import { useKeyboardShortcuts, SHORTCUT_KEYS } from '@/hooks/useKeyboardShortcuts';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
-import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, exportPresets, importPresets, trackPresetUsage, loadUsageStats, generateShareableUrl, checkUrlForSharedPreset, PRESET_TEMPLATES, getTemplateCategories, createPresetFromTemplate, PresetTemplate, PresetSortOption, sortPresets, PresetVersion, restorePresetVersion, getPresetVersionHistory } from '@/lib/quick-presets';
+import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, exportPresets, importPresets, trackPresetUsage, loadUsageStats, generateShareableUrl, checkUrlForSharedPreset, PRESET_TEMPLATES, getTemplateCategories, createPresetFromTemplate, PresetTemplate, PresetSortOption, sortPresets, PresetVersion, restorePresetVersion, getPresetVersionHistory, searchPresets, setPresetCategory, filterByCategory, getAllCategories, addCustomCategory, duplicatePreset, DEFAULT_CATEGORIES } from '@/lib/quick-presets';
 import { toast } from 'sonner';
 
 interface Attachment {
@@ -104,6 +104,9 @@ export function FloatingChatWindow({
   const [versionHistoryPresetId, setVersionHistoryPresetId] = useState<string>('');
   const [versionHistoryPresetName, setVersionHistoryPresetName] = useState<string>('');
   const [showRecommendations, setShowRecommendations] = useState(true);
+  const [presetSearchQuery, setPresetSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>(() => getAllCategories());
   const [windowSize, setWindowSize] = useState({ width: 400, height: 500 });
   const [isResizing, setIsResizing] = useState(false);
   const [snapIndicator, setSnapIndicator] = useState<'left' | 'right' | 'top' | null>(null);
@@ -942,8 +945,41 @@ export function FloatingChatWindow({
                     </Button>
                   </div>
                 </div>
+                {/* Search bar */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search presets..."
+                    value={presetSearchQuery}
+                    onChange={(e) => setPresetSearchQuery(e.target.value)}
+                    className="w-full h-7 pl-7 pr-2 text-xs bg-muted/50 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                {/* Category filter */}
+                <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1">
+                  <Button
+                    variant={selectedCategory === null ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className="h-6 px-2 text-xs shrink-0"
+                  >
+                    All
+                  </Button>
+                  {categories.map((cat) => (
+                    <Button
+                      key={cat}
+                      variant={selectedCategory === cat ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setSelectedCategory(cat)}
+                      className="h-6 px-2 text-xs shrink-0"
+                    >
+                      {cat}
+                    </Button>
+                  ))}
+                </div>
                 {/* Recommendations section */}
-                {showRecommendations && quickPresets.length > 0 && (
+                {showRecommendations && quickPresets.length > 0 && !presetSearchQuery && !selectedCategory && (
                   <PresetRecommendations
                     presets={quickPresets}
                     usageStats={usageStats}
@@ -955,7 +991,19 @@ export function FloatingChatWindow({
                 )}
                 <div className="space-y-1">
                   {/* Quick Presets from quickPresets state with drag-and-drop */}
-                  {sortPresets(quickPresets, presetSortOption, usageStats).map((preset, index) => (
+                  {(() => {
+                    let filteredPresets = quickPresets;
+                    // Apply search filter
+                    if (presetSearchQuery) {
+                      filteredPresets = searchPresets(filteredPresets, presetSearchQuery);
+                    }
+                    // Apply category filter
+                    if (selectedCategory) {
+                      filteredPresets = filterByCategory(filteredPresets, selectedCategory);
+                    }
+                    // Apply sorting
+                    return sortPresets(filteredPresets, presetSortOption, usageStats);
+                  })().map((preset, index) => (
                     <div
                       key={preset.id}
                       draggable
@@ -1104,6 +1152,62 @@ export function FloatingChatWindow({
                       >
                         <History className="h-3 w-3" />
                       </Button>
+                      
+                      {/* Duplicate button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const updated = duplicatePreset(quickPresets, preset.id);
+                          setQuickPresets(updated);
+                          saveQuickPresets(updated);
+                          toast.success(`Duplicated "${preset.name}"`);
+                        }}
+                        className="h-8 w-8 p-0"
+                        title="Duplicate preset"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      
+                      {/* Category dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-8 w-8 p-0 ${preset.category ? 'text-primary' : ''}`}
+                            title={preset.category ? `Category: ${preset.category}` : 'Set category'}
+                          >
+                            <Tag className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuLabel>Set Category</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const updated = setPresetCategory(quickPresets, preset.id, undefined);
+                              setQuickPresets(updated);
+                              saveQuickPresets(updated);
+                            }}
+                          >
+                            <span className={!preset.category ? 'font-medium' : ''}>None</span>
+                          </DropdownMenuItem>
+                          {categories.map((cat) => (
+                            <DropdownMenuItem
+                              key={cat}
+                              onClick={() => {
+                                const updated = setPresetCategory(quickPresets, preset.id, cat);
+                                setQuickPresets(updated);
+                                saveQuickPresets(updated);
+                                toast.success(`Set category to "${cat}"`);
+                              }}
+                            >
+                              <span className={preset.category === cat ? 'font-medium' : ''}>{cat}</span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       
                       {/* Share button */}
                       <Button

@@ -10,9 +10,19 @@ import {
   loadVersionHistory,
   saveVersionHistory,
   restorePresetVersion,
+  searchPresets,
+  setPresetCategory,
+  filterByCategory,
+  groupByCategory,
+  getAllCategories,
+  addCustomCategory,
+  removeCustomCategory,
+  duplicatePreset,
+  duplicatePresetMultiple,
   QuickPreset,
   PresetUsageStats,
   PresetSortOption,
+  DEFAULT_CATEGORIES,
 } from '@/lib/quick-presets';
 
 // Mock localStorage
@@ -290,5 +300,269 @@ describe('Quick Presets - Version History', () => {
     
     expect(loaded.length).toBe(1);
     expect(loaded[0].name).toBe('Test');
+  });
+});
+
+
+// ============================================
+// SEARCH TESTS
+// ============================================
+
+describe('Quick Presets - Search', () => {
+  const mockPresets: QuickPreset[] = [
+    {
+      id: 'preset-1',
+      sourceId: 'source-1',
+      sourceType: 'custom',
+      name: 'Coding Assistant',
+      description: 'Help with programming tasks',
+      models: ['gpt-4o', 'claude-3'],
+      isModified: false,
+      category: 'Work',
+    },
+    {
+      id: 'preset-2',
+      sourceId: 'source-2',
+      sourceType: 'custom',
+      name: 'Creative Writer',
+      description: 'Generate creative content',
+      models: ['gpt-4o', 'gemini'],
+      isModified: false,
+      category: 'Personal',
+    },
+    {
+      id: 'preset-3',
+      sourceId: 'source-3',
+      sourceType: 'custom',
+      name: 'Research Helper',
+      description: 'Academic research assistance',
+      models: ['claude-3', 'deepseek'],
+      isModified: false,
+      category: 'Work',
+    },
+  ];
+
+  it('should return all presets when query is empty', () => {
+    const results = searchPresets(mockPresets, '');
+    expect(results.length).toBe(3);
+  });
+
+  it('should search by name', () => {
+    const results = searchPresets(mockPresets, 'coding');
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Coding Assistant');
+  });
+
+  it('should search by description', () => {
+    const results = searchPresets(mockPresets, 'creative');
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Creative Writer');
+  });
+
+  it('should search by model name', () => {
+    const results = searchPresets(mockPresets, 'claude');
+    expect(results.length).toBe(2);
+  });
+
+  it('should search by category', () => {
+    const results = searchPresets(mockPresets, 'work');
+    expect(results.length).toBe(2);
+  });
+
+  it('should be case insensitive', () => {
+    const results = searchPresets(mockPresets, 'CODING');
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Coding Assistant');
+  });
+
+  it('should return empty array when no matches', () => {
+    const results = searchPresets(mockPresets, 'nonexistent');
+    expect(results.length).toBe(0);
+  });
+});
+
+// ============================================
+// CATEGORY TESTS
+// ============================================
+
+describe('Quick Presets - Categories', () => {
+  const mockPresets: QuickPreset[] = [
+    {
+      id: 'preset-1',
+      sourceId: 'source-1',
+      sourceType: 'custom',
+      name: 'Work Preset',
+      models: ['model-1'],
+      isModified: false,
+      category: 'Work',
+    },
+    {
+      id: 'preset-2',
+      sourceId: 'source-2',
+      sourceType: 'custom',
+      name: 'Personal Preset',
+      models: ['model-2'],
+      isModified: false,
+      category: 'Personal',
+    },
+    {
+      id: 'preset-3',
+      sourceId: 'source-3',
+      sourceType: 'custom',
+      name: 'Uncategorized Preset',
+      models: ['model-3'],
+      isModified: false,
+    },
+  ];
+
+  beforeEach(() => {
+    localStorageMock.clear();
+  });
+
+  it('should have default categories', () => {
+    expect(DEFAULT_CATEGORIES).toContain('Work');
+    expect(DEFAULT_CATEGORIES).toContain('Personal');
+    expect(DEFAULT_CATEGORIES).toContain('Coding');
+  });
+
+  it('should filter presets by category', () => {
+    const workPresets = filterByCategory(mockPresets, 'Work');
+    expect(workPresets.length).toBe(1);
+    expect(workPresets[0].name).toBe('Work Preset');
+  });
+
+  it('should return all presets when category is null', () => {
+    const allPresets = filterByCategory(mockPresets, null);
+    expect(allPresets.length).toBe(3);
+  });
+
+  it('should set category for a preset', () => {
+    const updated = setPresetCategory(mockPresets, 'preset-3', 'Coding');
+    const preset = updated.find(p => p.id === 'preset-3');
+    expect(preset?.category).toBe('Coding');
+  });
+
+  it('should remove category from a preset', () => {
+    const updated = setPresetCategory(mockPresets, 'preset-1', undefined);
+    const preset = updated.find(p => p.id === 'preset-1');
+    expect(preset?.category).toBeUndefined();
+  });
+
+  it('should group presets by category', () => {
+    const groups = groupByCategory(mockPresets);
+    expect(groups['Work'].length).toBe(1);
+    expect(groups['Personal'].length).toBe(1);
+    expect(groups['Uncategorized'].length).toBe(1);
+  });
+
+  it('should add custom category', () => {
+    const categories = addCustomCategory('Custom Category');
+    expect(categories).toContain('Custom Category');
+  });
+
+  it('should not add duplicate category', () => {
+    addCustomCategory('Unique');
+    const categories = addCustomCategory('Unique');
+    const count = categories.filter(c => c === 'Unique').length;
+    expect(count).toBe(1);
+  });
+
+  it('should remove custom category', () => {
+    addCustomCategory('ToRemove');
+    const categories = removeCustomCategory('ToRemove');
+    expect(categories).not.toContain('ToRemove');
+  });
+
+  it('should get all categories including custom', () => {
+    addCustomCategory('MyCustom');
+    const categories = getAllCategories();
+    expect(categories).toContain('MyCustom');
+    expect(categories).toContain('Work'); // Default category
+  });
+});
+
+// ============================================
+// DUPLICATION TESTS
+// ============================================
+
+describe('Quick Presets - Duplication', () => {
+  const mockPresets: QuickPreset[] = [
+    {
+      id: 'preset-1',
+      sourceId: 'source-1',
+      sourceType: 'custom',
+      name: 'Original Preset',
+      description: 'Original description',
+      models: ['model-1', 'model-2'],
+      isModified: false,
+      isFavorite: true,
+      category: 'Work',
+    },
+  ];
+
+  beforeEach(() => {
+    localStorageMock.clear();
+  });
+
+  it('should duplicate a preset with default name', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1');
+    expect(result.length).toBe(2);
+    
+    const duplicate = result[1];
+    expect(duplicate.name).toBe('Original Preset (Copy)');
+    expect(duplicate.models).toEqual(['model-1', 'model-2']);
+  });
+
+  it('should duplicate a preset with custom name', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1', 'My Custom Copy');
+    const duplicate = result[1];
+    expect(duplicate.name).toBe('My Custom Copy');
+  });
+
+  it('should create a new unique ID for duplicate', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1');
+    const duplicate = result[1];
+    expect(duplicate.id).not.toBe('preset-1');
+    expect(duplicate.id).toContain('quick-');
+  });
+
+  it('should copy description and category', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1');
+    const duplicate = result[1];
+    expect(duplicate.description).toBe('Original description');
+    expect(duplicate.category).toBe('Work');
+  });
+
+  it('should not copy favorite status', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1');
+    const duplicate = result[1];
+    expect(duplicate.isFavorite).toBe(false);
+  });
+
+  it('should mark duplicate as modified', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1');
+    const duplicate = result[1];
+    expect(duplicate.isModified).toBe(true);
+  });
+
+  it('should return original array if preset not found', () => {
+    const result = duplicatePreset(mockPresets, 'nonexistent');
+    expect(result.length).toBe(1);
+  });
+
+  it('should create multiple duplicates', () => {
+    const result = duplicatePresetMultiple(mockPresets, 'preset-1', 3);
+    expect(result.length).toBe(4); // 1 original + 3 copies
+    
+    expect(result[1].name).toBe('Original Preset (Copy 1)');
+    expect(result[2].name).toBe('Original Preset (Copy 2)');
+    expect(result[3].name).toBe('Original Preset (Copy 3)');
+  });
+
+  it('should set createdAt timestamp on duplicate', () => {
+    const result = duplicatePreset(mockPresets, 'preset-1');
+    const duplicate = result[1];
+    expect(duplicate.createdAt).toBeDefined();
+    expect(new Date(duplicate.createdAt!).getTime()).toBeGreaterThan(0);
   });
 });

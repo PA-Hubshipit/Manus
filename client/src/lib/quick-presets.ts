@@ -12,7 +12,22 @@ export interface QuickPreset {
   usageCount?: number; // Number of times preset has been used
   lastUsedAt?: string; // ISO timestamp of last usage
   createdAt?: string; // ISO timestamp when preset was added
+  category?: string; // Custom category/tag for organizing presets
 }
+
+/**
+ * Default preset categories
+ */
+export const DEFAULT_CATEGORIES = [
+  'Work',
+  'Personal',
+  'Coding',
+  'Writing',
+  'Research',
+  'Creative',
+] as const;
+
+export type PresetCategory = typeof DEFAULT_CATEGORIES[number] | string;
 
 /**
  * Preset version for history tracking
@@ -782,4 +797,187 @@ export function createPresetFromTemplate(template: PresetTemplate): QuickPreset 
     usageCount: 0,
     createdAt: new Date().toISOString(),
   };
+}
+
+
+// ============================================
+// SEARCH FUNCTIONS
+// ============================================
+
+/**
+ * Search presets by name or description
+ */
+export function searchPresets(
+  presets: QuickPreset[],
+  query: string
+): QuickPreset[] {
+  if (!query.trim()) return presets;
+  
+  const lowerQuery = query.toLowerCase().trim();
+  return presets.filter(preset => {
+    const nameMatch = preset.name.toLowerCase().includes(lowerQuery);
+    const descMatch = preset.description?.toLowerCase().includes(lowerQuery) || false;
+    const modelMatch = preset.models.some(m => m.toLowerCase().includes(lowerQuery));
+    const categoryMatch = preset.category?.toLowerCase().includes(lowerQuery) || false;
+    return nameMatch || descMatch || modelMatch || categoryMatch;
+  });
+}
+
+// ============================================
+// CATEGORY FUNCTIONS
+// ============================================
+
+const CATEGORIES_STORAGE_KEY = 'presetCategories';
+
+/**
+ * Load custom categories from localStorage
+ */
+export function loadCustomCategories(): string[] {
+  try {
+    const stored = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Failed to load custom categories:', error);
+  }
+  return [];
+}
+
+/**
+ * Save custom categories to localStorage
+ */
+export function saveCustomCategories(categories: string[]): void {
+  try {
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+  } catch (error) {
+    console.error('Failed to save custom categories:', error);
+  }
+}
+
+/**
+ * Get all categories (default + custom)
+ */
+export function getAllCategories(): string[] {
+  const custom = loadCustomCategories();
+  return [...DEFAULT_CATEGORIES, ...custom.filter(c => !DEFAULT_CATEGORIES.includes(c as any))];
+}
+
+/**
+ * Add a custom category
+ */
+export function addCustomCategory(category: string): string[] {
+  const custom = loadCustomCategories();
+  if (!custom.includes(category) && !DEFAULT_CATEGORIES.includes(category as any)) {
+    custom.push(category);
+    saveCustomCategories(custom);
+  }
+  return getAllCategories();
+}
+
+/**
+ * Remove a custom category
+ */
+export function removeCustomCategory(category: string): string[] {
+  const custom = loadCustomCategories();
+  const filtered = custom.filter(c => c !== category);
+  saveCustomCategories(filtered);
+  return getAllCategories();
+}
+
+/**
+ * Set category for a preset
+ */
+export function setPresetCategory(
+  presets: QuickPreset[],
+  presetId: string,
+  category: string | undefined
+): QuickPreset[] {
+  return presets.map(preset => {
+    if (preset.id !== presetId) return preset;
+    return { ...preset, category };
+  });
+}
+
+/**
+ * Filter presets by category
+ */
+export function filterByCategory(
+  presets: QuickPreset[],
+  category: string | null
+): QuickPreset[] {
+  if (!category) return presets;
+  return presets.filter(preset => preset.category === category);
+}
+
+/**
+ * Get presets grouped by category
+ */
+export function groupByCategory(presets: QuickPreset[]): Record<string, QuickPreset[]> {
+  const groups: Record<string, QuickPreset[]> = {
+    'Uncategorized': [],
+  };
+  
+  presets.forEach(preset => {
+    const category = preset.category || 'Uncategorized';
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(preset);
+  });
+  
+  return groups;
+}
+
+// ============================================
+// DUPLICATION FUNCTIONS
+// ============================================
+
+/**
+ * Duplicate a preset with a new name
+ */
+export function duplicatePreset(
+  presets: QuickPreset[],
+  presetId: string,
+  newName?: string
+): QuickPreset[] {
+  const original = presets.find(p => p.id === presetId);
+  if (!original) return presets;
+  
+  const duplicate: QuickPreset = {
+    id: `quick-${Date.now()}-${Math.random()}`,
+    sourceId: original.sourceId,
+    sourceType: original.sourceType,
+    name: newName || `${original.name} (Copy)`,
+    description: original.description,
+    models: [...original.models],
+    isModified: true, // Mark as modified since it's a copy
+    isFavorite: false, // Don't copy favorite status
+    category: original.category,
+    createdAt: new Date().toISOString(),
+  };
+  
+  // Record version history for the new preset
+  addVersionHistory(duplicate, 'created');
+  
+  return [...presets, duplicate];
+}
+
+/**
+ * Create multiple duplicates with different names
+ */
+export function duplicatePresetMultiple(
+  presets: QuickPreset[],
+  presetId: string,
+  count: number
+): QuickPreset[] {
+  let result = [...presets];
+  const original = presets.find(p => p.id === presetId);
+  if (!original) return presets;
+  
+  for (let i = 1; i <= count; i++) {
+    result = duplicatePreset(result, presetId, `${original.name} (Copy ${i})`);
+  }
+  
+  return result;
 }
