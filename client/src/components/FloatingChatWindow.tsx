@@ -202,27 +202,68 @@ export function FloatingChatWindow({
     document.addEventListener('touchend', upHandler);
   }, [isPinned, isMaximized, position, windowSize, SNAP_THRESHOLD, onPositionChange]);
 
-  // Resize handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: string) => {
+  // Resize handlers - supports all edges and corners
+  // edge: 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, edge: string) => {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(true);
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    resizeStart.current = { x: clientX, y: clientY, width: windowSize.width, height: windowSize.height };
+    
+    // Store initial state including position for edges that move the window
+    const initialState = {
+      mouseX: clientX,
+      mouseY: clientY,
+      width: windowSize.width,
+      height: windowSize.height,
+      posX: position.x,
+      posY: position.y
+    };
     
     const handleResizeMove = (moveEvent: MouseEvent | TouchEvent) => {
+      if (moveEvent.cancelable) {
+        moveEvent.preventDefault();
+      }
+      
       const moveX = 'touches' in moveEvent ? (moveEvent as TouchEvent).touches[0].clientX : (moveEvent as MouseEvent).clientX;
       const moveY = 'touches' in moveEvent ? (moveEvent as TouchEvent).touches[0].clientY : (moveEvent as MouseEvent).clientY;
       
-      const deltaX = moveX - resizeStart.current.x;
-      const deltaY = moveY - resizeStart.current.y;
+      const deltaX = moveX - initialState.mouseX;
+      const deltaY = moveY - initialState.mouseY;
       
-      const newWidth = Math.max(320, Math.min(800, resizeStart.current.width + deltaX));
-      const newHeight = Math.max(300, Math.min(800, resizeStart.current.height + deltaY));
+      let newWidth = initialState.width;
+      let newHeight = initialState.height;
+      let newPosX = initialState.posX;
+      let newPosY = initialState.posY;
+      
+      // Handle horizontal resizing
+      if (edge.includes('e')) {
+        // East edge: expand width to the right
+        newWidth = Math.max(320, Math.min(1200, initialState.width + deltaX));
+      }
+      if (edge.includes('w')) {
+        // West edge: expand width to the left (moves position)
+        const widthChange = Math.max(320, Math.min(1200, initialState.width - deltaX)) - initialState.width;
+        newWidth = initialState.width + widthChange;
+        newPosX = Math.max(0, initialState.posX - widthChange);
+      }
+      
+      // Handle vertical resizing
+      if (edge.includes('s')) {
+        // South edge: expand height downward
+        newHeight = Math.max(300, Math.min(1000, initialState.height + deltaY));
+      }
+      if (edge.includes('n')) {
+        // North edge: expand height upward (moves position)
+        const heightChange = Math.max(300, Math.min(1000, initialState.height - deltaY)) - initialState.height;
+        newHeight = initialState.height + heightChange;
+        newPosY = Math.max(0, initialState.posY - heightChange);
+      }
       
       setWindowSize({ width: newWidth, height: newHeight });
+      setPosition({ x: newPosX, y: newPosY });
     };
     
     const handleResizeEnd = () => {
@@ -232,15 +273,22 @@ export function FloatingChatWindow({
       document.removeEventListener('touchmove', handleResizeMove);
       document.removeEventListener('touchend', handleResizeEnd);
       
-      // Save window size to localStorage
-      localStorage.setItem('chatWindowSize', JSON.stringify(windowSize));
+      // Save window size and position to localStorage
+      setWindowSize(currentSize => {
+        localStorage.setItem('chatWindowSize', JSON.stringify(currentSize));
+        return currentSize;
+      });
+      setPosition(currentPos => {
+        localStorage.setItem('chatWindowPosition', JSON.stringify(currentPos));
+        return currentPos;
+      });
     };
     
     document.addEventListener('mousemove', handleResizeMove);
     document.addEventListener('mouseup', handleResizeEnd);
-    document.addEventListener('touchmove', handleResizeMove);
+    document.addEventListener('touchmove', handleResizeMove, { passive: false });
     document.addEventListener('touchend', handleResizeEnd);
-  }, [windowSize]);
+  }, [windowSize, position]);
 
   // Load saved conversations and custom presets from localStorage on mount
   useEffect(() => {
@@ -1420,21 +1468,69 @@ export function FloatingChatWindow({
         </>
       )}
       
-      {/* Resize Handle (bottom-right corner) */}
+      {/* Resize Handles - All edges and corners */}
       {!isMaximized && !isMinimized && (
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize group"
-          onMouseDown={(e) => handleResizeStart(e, 'se')}
-          onTouchStart={(e) => handleResizeStart(e, 'se')}
-        >
-          <svg
-            className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors"
-            viewBox="0 0 24 24"
-            fill="currentColor"
+        <>
+          {/* Edge handles */}
+          {/* North edge */}
+          <div
+            className="absolute top-0 left-3 right-3 h-1.5 cursor-n-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 'n')}
+            onTouchStart={(e) => handleResizeStart(e, 'n')}
+          />
+          {/* South edge */}
+          <div
+            className="absolute bottom-0 left-3 right-3 h-1.5 cursor-s-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 's')}
+            onTouchStart={(e) => handleResizeStart(e, 's')}
+          />
+          {/* West edge */}
+          <div
+            className="absolute left-0 top-3 bottom-3 w-1.5 cursor-w-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 'w')}
+            onTouchStart={(e) => handleResizeStart(e, 'w')}
+          />
+          {/* East edge */}
+          <div
+            className="absolute right-0 top-3 bottom-3 w-1.5 cursor-e-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 'e')}
+            onTouchStart={(e) => handleResizeStart(e, 'e')}
+          />
+          
+          {/* Corner handles */}
+          {/* Northwest corner */}
+          <div
+            className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize hover:bg-primary/30 transition-colors rounded-tl-lg"
+            onMouseDown={(e) => handleResizeStart(e, 'nw')}
+            onTouchStart={(e) => handleResizeStart(e, 'nw')}
+          />
+          {/* Northeast corner */}
+          <div
+            className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize hover:bg-primary/30 transition-colors rounded-tr-lg"
+            onMouseDown={(e) => handleResizeStart(e, 'ne')}
+            onTouchStart={(e) => handleResizeStart(e, 'ne')}
+          />
+          {/* Southwest corner */}
+          <div
+            className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize hover:bg-primary/30 transition-colors rounded-bl-lg"
+            onMouseDown={(e) => handleResizeStart(e, 'sw')}
+            onTouchStart={(e) => handleResizeStart(e, 'sw')}
+          />
+          {/* Southeast corner - with visual indicator */}
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize group"
+            onMouseDown={(e) => handleResizeStart(e, 'se')}
+            onTouchStart={(e) => handleResizeStart(e, 'se')}
           >
-            <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
-          </svg>
-        </div>
+            <svg
+              className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
+            </svg>
+          </div>
+        </>
       )}
     </motion.div>
     

@@ -155,3 +155,6 @@
 - [x] Add custom categories - Allow users to create their own category names
 - [x] Add bulk operations - Select multiple presets to delete, duplicate, or change category
 - [x] Add preset statistics dashboard - Show overview of presets, usage trends, category distribution
+
+## Edge-Based Resizing
+- [x] Manual resizing by dragging chat window edges (all 4 edges + corners)
