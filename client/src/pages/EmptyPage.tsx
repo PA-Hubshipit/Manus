@@ -211,7 +211,7 @@ export default function EmptyPage() {
           )}
 
           {/* Mode Selector */}
-          <ModeMenu currentMode="empty" />
+          <ModeMenu currentMode="empty" onAddChatWindow={addNewChatWindow} />
 
           <Button
             variant="ghost"

@@ -197,3 +197,8 @@
 - [x] Update App.tsx with all mode routes (/empty, /chat, /conversation, /agents)
 - [x] Integrate ModeMenu in EmptyPage, ChatPage, ConversationPage, AgentsPage
 - [x] Update ConversationPage to show "coming soon" message
+
+## Presets Bug Fix
+- [x] Remove ChatPage completely - use FloatingChatWindow on EmptyPage instead
+- [x] Update routing so Chat mode opens a new floating window on EmptyPage
+- [x] Ensure consistency across mobile and desktop versions
