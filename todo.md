@@ -158,3 +158,13 @@
 
 ## Edge-Based Resizing
 - [x] Manual resizing by dragging chat window edges (all 4 edges + corners)
+
+## Full Component Rewrite
+- [x] Rewrite FloatingChatWindow with optimized code
+- [x] Fix duplicate menu items in ChatFooter
+- [x] Fix window position persistence for multi-window support (using refs to avoid infinite loops)
+- [ ] Fix drag-and-drop with filters
+- [ ] Implement proper file attachment handling
+- [x] Fix state synchronization issues (fixed infinite loop in useEffect)
+- [x] Remove duplicate AI_PROVIDERS from Home.tsx
+- [ ] Clean up unused framer-motion code

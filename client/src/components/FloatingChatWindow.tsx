@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, useDragControls, PanInfo } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import type { SavedConversation as SavedConvo } from '@/components/ChatFooter';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,10 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, GripVertical, Plus, Pencil, Trash2, Check, Star, Download, Upload, Share2, BarChart2, Layout, History, Search, Tag, Copy, FolderOpen, CheckSquare } from 'lucide-react';
-import { ChatFooter, SavedConversation as SavedConvo } from '@/components/ChatFooter';
+import { Pin, Minus, Maximize2, Minimize2, X, MessageSquare, GripHorizontal, Plus, Pencil, Trash2, Star, Download, Upload, Share2, BarChart2, Layout, Search, Tag, Copy, FolderOpen, CheckSquare } from 'lucide-react';
+import { ChatFooter } from '@/components/ChatFooter';
 import { ModelSelector } from './ModelSelector';
-import { PresetsPanel } from './PresetsPanel';
 import { SettingsMenu } from './SettingsMenu';
 import { PresetEditorModal } from './PresetEditorModal';
 import { PresetsManagementModal, CustomPreset } from './PresetsManagementModal';
@@ -30,22 +30,43 @@ import { CustomCategoryModal } from './CustomCategoryModal';
 import { BulkOperationsBar } from './BulkOperationsBar';
 import { useKeyboardShortcuts, SHORTCUT_KEYS } from '@/hooks/useKeyboardShortcuts';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
-import { QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, exportPresets, importPresets, trackPresetUsage, loadUsageStats, generateShareableUrl, checkUrlForSharedPreset, PRESET_TEMPLATES, getTemplateCategories, createPresetFromTemplate, PresetTemplate, PresetSortOption, sortPresets, PresetVersion, restorePresetVersion, getPresetVersionHistory, searchPresets, setPresetCategory, filterByCategory, getAllCategories, addCustomCategory, duplicatePreset, DEFAULT_CATEGORIES, PresetUsageStats } from '@/lib/quick-presets';
+import { 
+  QuickPreset, loadQuickPresets, saveQuickPresets, addQuickPresets, 
+  updateQuickPreset, removeQuickPreset, reorderQuickPresets, toggleFavorite, 
+  exportPresets, importPresets, trackPresetUsage, loadUsageStats, 
+  generateShareableUrl, checkUrlForSharedPreset, PresetSortOption, sortPresets, 
+  restorePresetVersion, getPresetVersionHistory, searchPresets, setPresetCategory, 
+  filterByCategory, getAllCategories, duplicatePreset, PresetUsageStats 
+} from '@/lib/quick-presets';
 import { toast } from 'sonner';
 
+// ============================================
+// TYPES & INTERFACES
+// ============================================
+
 interface Attachment {
+  id: string;
   name: string;
   type: string;
   size: number;
   file: File;
+  preview?: string;
 }
 
-// Using SavedConvo from ChatFooter to avoid type conflicts
-// Using CustomPreset from PresetsManagementModal to avoid type conflicts
+interface Message {
+  id: number;
+  type: 'user' | 'ai' | 'typing';
+  content: string;
+  model?: string;
+  provider?: string;
+  timestamp: Date;
+}
 
 interface FloatingChatWindowProps {
   id: string;
   initialPosition?: { x: number; y: number };
+  initialSize?: { width: number; height: number };
+  isMinimized?: boolean;
   onClose: () => void;
   onMinimize?: () => void;
   onPositionChange?: (pos: { x: number; y: number }) => void;
@@ -55,9 +76,58 @@ interface FloatingChatWindowProps {
   onPinnedChange?: (pinned: boolean) => void;
 }
 
+// ============================================
+// CONSTANTS
+// ============================================
+
+const MIN_WINDOW_WIDTH = 320;
+const MAX_WINDOW_WIDTH = 1200;
+const MIN_WINDOW_HEIGHT = 300;
+const MAX_WINDOW_HEIGHT = 1000;
+const DEFAULT_WINDOW_WIDTH = 400;
+const DEFAULT_WINDOW_HEIGHT = 500;
+const SNAP_THRESHOLD = 30;
+const EDGE_HANDLE_SIZE = 6;
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+const getStorageKey = (id: string, suffix: string) => `chatWindow_${id}_${suffix}`;
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const loadWindowState = (id: string) => {
+  try {
+    const posStr = localStorage.getItem(getStorageKey(id, 'position'));
+    const sizeStr = localStorage.getItem(getStorageKey(id, 'size'));
+    return {
+      position: posStr ? JSON.parse(posStr) : null,
+      size: sizeStr ? JSON.parse(sizeStr) : null,
+    };
+  } catch {
+    return { position: null, size: null };
+  }
+};
+
+const saveWindowState = (id: string, position: { x: number; y: number }, size: { width: number; height: number }) => {
+  try {
+    localStorage.setItem(getStorageKey(id, 'position'), JSON.stringify(position));
+    localStorage.setItem(getStorageKey(id, 'size'), JSON.stringify(size));
+  } catch (e) {
+    console.error('Failed to save window state:', e);
+  }
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export function FloatingChatWindow({ 
   id, 
   initialPosition = { x: 50, y: 50 },
+  initialSize = { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT },
+  isMinimized: externalIsMinimized,
   onClose,
   onMinimize,
   onPositionChange,
@@ -66,273 +136,157 @@ export function FloatingChatWindow({
   onMessageCountChange,
   onPinnedChange,
 }: FloatingChatWindowProps) {
-  const [position, setPosition] = useState(initialPosition);
+  
+  // ============================================
+  // STATE - Window Management
+  // ============================================
+  
+  const [position, setPosition] = useState(() => {
+    const saved = loadWindowState(id);
+    if (saved.position) {
+      return {
+        x: clamp(saved.position.x, 0, window.innerWidth - MIN_WINDOW_WIDTH),
+        y: clamp(saved.position.y, 0, window.innerHeight - 100),
+      };
+    }
+    return initialPosition;
+  });
+  
+  const [windowSize, setWindowSize] = useState(() => {
+    const saved = loadWindowState(id);
+    if (saved.size) {
+      return {
+        width: clamp(saved.size.width, MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH),
+        height: clamp(saved.size.height, MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT),
+      };
+    }
+    return initialSize;
+  });
+  
   const [isPinned, setIsPinned] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  
+  // ============================================
+  // STATE - Chat
+  // ============================================
+  
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationTitle, setConversationTitle] = useState(`Chat ${id}`);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  
+  // ============================================
+  // STATE - UI Panels
+  // ============================================
+  
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
-  const [conversationTitle, setConversationTitle] = useState(`Chat ${id}`);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [savedConversations, setSavedConversations] = useState<SavedConvo[]>([]);
-  const [archivedConversations, setArchivedConversations] = useState<SavedConvo[]>([]);
   const [showPresetEditor, setShowPresetEditor] = useState(false);
-  const [editingPreset, setEditingPreset] = useState<CustomPreset | null>(null);
-  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
-  const [showRenameDialog, setShowRenameDialog] = useState(false);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editTitleValue, setEditTitleValue] = useState('');
-  const lastTapRef = useRef<number>(0);
   const [showPresetsManagement, setShowPresetsManagement] = useState(false);
-  const [defaultModels, setDefaultModels] = useState<string[]>([]);
-  const [quickPresets, setQuickPresets] = useState<QuickPreset[]>([]);
   const [showPresetSelection, setShowPresetSelection] = useState(false);
-  const [editingQuickPresetId, setEditingQuickPresetId] = useState<string | null>(null);
-  const [editingQuickPresetName, setEditingQuickPresetName] = useState('');
-  const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
   const [showSavedConversationsModal, setShowSavedConversationsModal] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [usageStats, setUsageStats] = useState(() => loadUsageStats());
-  const [presetSortOption, setPresetSortOption] = useState<PresetSortOption>('manual');
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [versionHistoryPresetId, setVersionHistoryPresetId] = useState<string>('');
-  const [versionHistoryPresetName, setVersionHistoryPresetName] = useState<string>('');
-  const [showRecommendations, setShowRecommendations] = useState(true);
+  const [showStatsDashboard, setShowStatsDashboard] = useState(false);
+  const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  
+  // ============================================
+  // STATE - Presets
+  // ============================================
+  
+  const [quickPresets, setQuickPresets] = useState<QuickPreset[]>(() => loadQuickPresets());
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+  const [editingPreset, setEditingPreset] = useState<CustomPreset | null>(null);
+  const [editingQuickPresetId, setEditingQuickPresetId] = useState<string | null>(null);
+  const [usageStats, setUsageStats] = useState<PresetUsageStats>(() => loadUsageStats());
+  const [presetSortOption, setPresetSortOption] = useState<PresetSortOption>('manual');
   const [presetSearchQuery, setPresetSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>(() => getAllCategories());
-  const [showStatsDashboard, setShowStatsDashboard] = useState(false);
-  const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedPresetIds, setSelectedPresetIds] = useState<Set<string>>(new Set());
-  const [windowSize, setWindowSize] = useState({ width: 400, height: 500 });
-  const [isResizing, setIsResizing] = useState(false);
-  const [snapIndicator, setSnapIndicator] = useState<'left' | 'right' | 'top' | null>(null);
+  const [showRecommendations, setShowRecommendations] = useState(true);
+  const [versionHistoryPresetId, setVersionHistoryPresetId] = useState<string>('');
+  const [versionHistoryPresetName, setVersionHistoryPresetName] = useState<string>('');
+  const [draggedPresetIndex, setDraggedPresetIndex] = useState<number | null>(null);
+  
+  // ============================================
+  // STATE - Conversations
+  // ============================================
+  
+  const [savedConversations, setSavedConversations] = useState<any[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<any[]>([]);
+  
+  // ============================================
+  // STATE - Title Editing
+  // ============================================
+  
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState('');
+  const lastTapRef = useRef<number>(0);
+  
+  // ============================================
+  // REFS
+  // ============================================
+  
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0, edge: '' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const dragControls = useDragControls();
-  const constraintsRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const resizeStart = useRef({ x: 0, y: 0, width: 400, height: 500 });
+  // ============================================
+  // COMPUTED VALUES
+  // ============================================
   
-  // Snap threshold in pixels
-  const SNAP_THRESHOLD = 30;
-
-  // Native drag handler for better compatibility
-  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (isPinned || isMaximized) return;
-    
-    // Prevent default to stop text selection and other browser behaviors
-    e.preventDefault();
-    
-    isDragging.current = true;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    dragStart.current = { x: clientX - position.x, y: clientY - position.y };
-    
-    // Store initial position for reference
-    const initialPos = { ...position };
-    
-    const moveHandler = (moveEvent: MouseEvent | TouchEvent) => {
-      if (!isDragging.current) return;
-      
-      // Prevent default to stop scrolling on touch devices
-      if (moveEvent.cancelable) {
-        moveEvent.preventDefault();
-      }
-      
-      const moveClientX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : (moveEvent as MouseEvent).clientX;
-      const moveClientY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : (moveEvent as MouseEvent).clientY;
-      
-      // Calculate new position allowing full horizontal and vertical movement
-      const newX = Math.max(0, Math.min(window.innerWidth - 100, moveClientX - dragStart.current.x));
-      const newY = Math.max(0, Math.min(window.innerHeight - 50, moveClientY - dragStart.current.y));
-      
-      setPosition({ x: newX, y: newY });
-    };
-    
-    const upHandler = () => {
-      isDragging.current = false;
-      document.removeEventListener('mousemove', moveHandler);
-      document.removeEventListener('mouseup', upHandler);
-      document.removeEventListener('touchmove', moveHandler);
-      document.removeEventListener('touchend', upHandler);
-      
-      // Get current position for snap logic
-      setPosition(currentPos => {
-        let finalX = currentPos.x;
-        let finalY = currentPos.y;
-        
-        // Snap to edges if near
-        if (currentPos.x < SNAP_THRESHOLD) {
-          finalX = 0;
-        } else if (currentPos.x > window.innerWidth - windowSize.width - SNAP_THRESHOLD) {
-          finalX = Math.max(0, window.innerWidth - windowSize.width);
-        }
-        
-        if (currentPos.y < SNAP_THRESHOLD) {
-          finalY = 0;
-        } else if (currentPos.y > window.innerHeight - windowSize.height - SNAP_THRESHOLD) {
-          finalY = Math.max(0, window.innerHeight - windowSize.height);
-        }
-        
-        // Save to localStorage
-        localStorage.setItem('chatWindowPosition', JSON.stringify({ x: finalX, y: finalY }));
-        onPositionChange?.({ x: finalX, y: finalY });
-        
-        return { x: finalX, y: finalY };
-      });
-      
-      setSnapIndicator(null);
-    };
-    
-    document.addEventListener('mousemove', moveHandler);
-    document.addEventListener('mouseup', upHandler);
-    document.addEventListener('touchmove', moveHandler, { passive: false });
-    document.addEventListener('touchend', upHandler);
-  }, [isPinned, isMaximized, position, windowSize, SNAP_THRESHOLD, onPositionChange]);
-
-  // Resize handlers - supports all edges and corners
-  // edge: 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, edge: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    // Store initial state including position for edges that move the window
-    const initialState = {
-      mouseX: clientX,
-      mouseY: clientY,
-      width: windowSize.width,
-      height: windowSize.height,
-      posX: position.x,
-      posY: position.y
-    };
-    
-    const handleResizeMove = (moveEvent: MouseEvent | TouchEvent) => {
-      if (moveEvent.cancelable) {
-        moveEvent.preventDefault();
-      }
-      
-      const moveX = 'touches' in moveEvent ? (moveEvent as TouchEvent).touches[0].clientX : (moveEvent as MouseEvent).clientX;
-      const moveY = 'touches' in moveEvent ? (moveEvent as TouchEvent).touches[0].clientY : (moveEvent as MouseEvent).clientY;
-      
-      const deltaX = moveX - initialState.mouseX;
-      const deltaY = moveY - initialState.mouseY;
-      
-      let newWidth = initialState.width;
-      let newHeight = initialState.height;
-      let newPosX = initialState.posX;
-      let newPosY = initialState.posY;
-      
-      // Handle horizontal resizing
-      if (edge.includes('e')) {
-        // East edge: expand width to the right
-        newWidth = Math.max(320, Math.min(1200, initialState.width + deltaX));
-      }
-      if (edge.includes('w')) {
-        // West edge: expand width to the left (moves position)
-        const widthChange = Math.max(320, Math.min(1200, initialState.width - deltaX)) - initialState.width;
-        newWidth = initialState.width + widthChange;
-        newPosX = Math.max(0, initialState.posX - widthChange);
-      }
-      
-      // Handle vertical resizing
-      if (edge.includes('s')) {
-        // South edge: expand height downward
-        newHeight = Math.max(300, Math.min(1000, initialState.height + deltaY));
-      }
-      if (edge.includes('n')) {
-        // North edge: expand height upward (moves position)
-        const heightChange = Math.max(300, Math.min(1000, initialState.height - deltaY)) - initialState.height;
-        newHeight = initialState.height + heightChange;
-        newPosY = Math.max(0, initialState.posY - heightChange);
-      }
-      
-      setWindowSize({ width: newWidth, height: newHeight });
-      setPosition({ x: newPosX, y: newPosY });
-    };
-    
-    const handleResizeEnd = () => {
-      setIsResizing(false);
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-      document.removeEventListener('touchmove', handleResizeMove);
-      document.removeEventListener('touchend', handleResizeEnd);
-      
-      // Save window size and position to localStorage
-      setWindowSize(currentSize => {
-        localStorage.setItem('chatWindowSize', JSON.stringify(currentSize));
-        return currentSize;
-      });
-      setPosition(currentPos => {
-        localStorage.setItem('chatWindowPosition', JSON.stringify(currentPos));
-        return currentPos;
-      });
-    };
-    
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-    document.addEventListener('touchmove', handleResizeMove, { passive: false });
-    document.addEventListener('touchend', handleResizeEnd);
-  }, [windowSize, position]);
-
-  // Load saved conversations and custom presets from localStorage on mount
+  const isMinimized = externalIsMinimized ?? false;
+  
+  const filteredPresets = useMemo(() => {
+    let result = quickPresets;
+    if (presetSearchQuery) {
+      result = searchPresets(result, presetSearchQuery);
+    }
+    if (selectedCategory) {
+      result = filterByCategory(result, selectedCategory);
+    }
+    return sortPresets(result, presetSortOption, usageStats);
+  }, [quickPresets, presetSearchQuery, selectedCategory, presetSortOption, usageStats]);
+  
+  // Map filtered indices to original indices for drag-and-drop
+  const filteredToOriginalIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    filteredPresets.forEach((preset, filteredIdx) => {
+      const originalIdx = quickPresets.findIndex(p => p.id === preset.id);
+      map.set(filteredIdx, originalIdx);
+    });
+    return map;
+  }, [filteredPresets, quickPresets]);
+  
+  const canDragPresets = !presetSearchQuery && !selectedCategory && presetSortOption === 'manual';
+  
+  // ============================================
+  // EFFECTS - Initialization
+  // ============================================
+  
   useEffect(() => {
+    // Load saved data on mount
     const saved = JSON.parse(localStorage.getItem('savedConversations') || '[]');
     setSavedConversations(saved);
     const archived = JSON.parse(localStorage.getItem('archivedConversations') || '[]');
     setArchivedConversations(archived);
     const presets = JSON.parse(localStorage.getItem('customPresets') || '[]');
     setCustomPresets(presets);
-    const quick = loadQuickPresets();
-    setQuickPresets(quick);
-    
-    // Load window position and size from localStorage (Window Memory)
-    const savedPosition = localStorage.getItem('chatWindowPosition');
-    const savedSize = localStorage.getItem('chatWindowSize');
-    
-    if (savedPosition) {
-      try {
-        const pos = JSON.parse(savedPosition);
-        // Validate position is within viewport
-        const validX = Math.max(0, Math.min(window.innerWidth - 400, pos.x));
-        const validY = Math.max(0, Math.min(window.innerHeight - 100, pos.y));
-        setPosition({ x: validX, y: validY });
-      } catch (e) {
-        console.error('Failed to parse saved position', e);
-      }
-    }
-    
-    if (savedSize) {
-      try {
-        const size = JSON.parse(savedSize);
-        setWindowSize({ 
-          width: Math.max(320, Math.min(800, size.width)), 
-          height: Math.max(300, Math.min(800, size.height)) 
-        });
-      } catch (e) {
-        console.error('Failed to parse saved size', e);
-      }
-    }
     
     // Check URL for shared preset
     const sharedPreset = checkUrlForSharedPreset();
     if (sharedPreset) {
-      // Ask user if they want to import the shared preset
       const confirmImport = window.confirm(
         `Import shared preset "${sharedPreset.name}" with ${sharedPreset.models.length} models?`
       );
@@ -344,69 +298,223 @@ export function FloatingChatWindow({
           description: sharedPreset.description,
           models: sharedPreset.models,
         };
-        const updated = addQuickPresets(quick, [newPreset]);
+        const updated = addQuickPresets(quickPresets, [newPreset]);
         setQuickPresets(updated);
         saveQuickPresets(updated);
         toast.success(`Imported preset: ${sharedPreset.name}`);
       }
-      // Clear the hash from URL
       window.history.replaceState(null, '', window.location.pathname);
     }
   }, []);
-
-  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const newPos = { 
-      x: position.x + info.offset.x, 
-      y: position.y + info.offset.y 
-    };
-    setPosition(newPos);
-    onPositionChange?.(newPos);
-  };
-
-  // Notify parent of title changes (use ref to avoid infinite loop)
-  const onTitleChangeRef = useRef(onTitleChange);
-  onTitleChangeRef.current = onTitleChange;
+  
+  // ============================================
+  // EFFECTS - Parent Notifications
+  // ============================================
+  
+  // Notify parent of title changes - use ref to avoid infinite loops
+  const prevTitleRef = useRef(conversationTitle);
   useEffect(() => {
-    onTitleChangeRef.current?.(conversationTitle);
-  }, [conversationTitle]);
-
+    if (prevTitleRef.current !== conversationTitle) {
+      prevTitleRef.current = conversationTitle;
+      onTitleChange?.(conversationTitle);
+    }
+  }, [conversationTitle]); // Remove onTitleChange from deps to avoid infinite loop
+  
   // Notify parent of message count changes
-  const onMessageCountChangeRef = useRef(onMessageCountChange);
-  onMessageCountChangeRef.current = onMessageCountChange;
+  const prevMessageCountRef = useRef(messages.length);
   useEffect(() => {
-    onMessageCountChangeRef.current?.(messages.length);
-  }, [messages.length]);
-
+    if (prevMessageCountRef.current !== messages.length) {
+      prevMessageCountRef.current = messages.length;
+      onMessageCountChange?.(messages.length);
+    }
+  }, [messages.length]); // Remove onMessageCountChange from deps
+  
   // Notify parent of size changes
-  const onSizeChangeRef = useRef(onSizeChange);
-  onSizeChangeRef.current = onSizeChange;
+  const prevSizeRef = useRef(windowSize);
   useEffect(() => {
-    onSizeChangeRef.current?.(windowSize);
-  }, [windowSize]);
-
-  const togglePin = () => {
-    setIsPinned(!isPinned);
-    onPinnedChange?.(!isPinned);
-    toast.info(isPinned ? 'Window unpinned' : 'Window pinned');
-  };
-
-  const toggleMinimize = () => {
-    if (!isMinimized && onMinimize) {
-      // Call parent's minimize handler instead of local state
-      onMinimize();
-    } else {
-      setIsMinimized(!isMinimized);
+    if (prevSizeRef.current.width !== windowSize.width || prevSizeRef.current.height !== windowSize.height) {
+      prevSizeRef.current = windowSize;
+      onSizeChange?.(windowSize);
     }
-  };
-
-  const toggleMaximize = () => {
-    setIsMaximized(!isMaximized);
-    if (!isMaximized) {
-      toast.info('Window maximized');
-    }
-  };
-
-  const handleSend = async () => {
+  }, [windowSize]); // Remove onSizeChange from deps
+  
+  // ============================================
+  // DRAG HANDLERS
+  // ============================================
+  
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (isPinned || isMaximized) return;
+    e.preventDefault();
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    dragStartRef.current = {
+      x: clientX,
+      y: clientY,
+      posX: position.x,
+      posY: position.y,
+    };
+    
+    setIsDragging(true);
+    
+    const handleMove = (moveEvent: MouseEvent | TouchEvent) => {
+      if (moveEvent.cancelable) moveEvent.preventDefault();
+      
+      const moveX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const moveY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      
+      const deltaX = moveX - dragStartRef.current.x;
+      const deltaY = moveY - dragStartRef.current.y;
+      
+      const newX = clamp(dragStartRef.current.posX + deltaX, 0, window.innerWidth - 100);
+      const newY = clamp(dragStartRef.current.posY + deltaY, 0, window.innerHeight - 50);
+      
+      setPosition({ x: newX, y: newY });
+    };
+    
+    const handleEnd = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+      
+      // Snap to edges
+      setPosition(currentPos => {
+        let finalX = currentPos.x;
+        let finalY = currentPos.y;
+        
+        if (currentPos.x < SNAP_THRESHOLD) finalX = 0;
+        else if (currentPos.x > window.innerWidth - windowSize.width - SNAP_THRESHOLD) {
+          finalX = Math.max(0, window.innerWidth - windowSize.width);
+        }
+        
+        if (currentPos.y < SNAP_THRESHOLD) finalY = 0;
+        else if (currentPos.y > window.innerHeight - windowSize.height - SNAP_THRESHOLD) {
+          finalY = Math.max(0, window.innerHeight - windowSize.height);
+        }
+        
+        saveWindowState(id, { x: finalX, y: finalY }, windowSize);
+        onPositionChange?.({ x: finalX, y: finalY });
+        
+        return { x: finalX, y: finalY };
+      });
+    };
+    
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+  }, [isPinned, isMaximized, position, windowSize, id, onPositionChange]);
+  
+  // ============================================
+  // RESIZE HANDLERS
+  // ============================================
+  
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, edge: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    resizeStartRef.current = {
+      x: clientX,
+      y: clientY,
+      width: windowSize.width,
+      height: windowSize.height,
+      posX: position.x,
+      posY: position.y,
+      edge,
+    };
+    
+    setIsResizing(true);
+    
+    const handleMove = (moveEvent: MouseEvent | TouchEvent) => {
+      if (moveEvent.cancelable) moveEvent.preventDefault();
+      
+      const moveX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const moveY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      
+      const deltaX = moveX - resizeStartRef.current.x;
+      const deltaY = moveY - resizeStartRef.current.y;
+      const { edge, width, height, posX, posY } = resizeStartRef.current;
+      
+      let newWidth = width;
+      let newHeight = height;
+      let newPosX = posX;
+      let newPosY = posY;
+      
+      // East edge
+      if (edge.includes('e')) {
+        newWidth = clamp(width + deltaX, MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH);
+      }
+      // West edge
+      if (edge.includes('w')) {
+        const widthDelta = clamp(width - deltaX, MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH) - width;
+        newWidth = width + widthDelta;
+        newPosX = Math.max(0, posX - widthDelta);
+      }
+      // South edge
+      if (edge.includes('s')) {
+        newHeight = clamp(height + deltaY, MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT);
+      }
+      // North edge
+      if (edge.includes('n')) {
+        const heightDelta = clamp(height - deltaY, MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT) - height;
+        newHeight = height + heightDelta;
+        newPosY = Math.max(0, posY - heightDelta);
+      }
+      
+      setWindowSize({ width: newWidth, height: newHeight });
+      setPosition({ x: newPosX, y: newPosY });
+    };
+    
+    const handleEnd = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+      
+      // Save final state
+      saveWindowState(id, position, windowSize);
+    };
+    
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+  }, [windowSize, position, id]);
+  
+  // ============================================
+  // WINDOW CONTROL HANDLERS
+  // ============================================
+  
+  const togglePin = useCallback(() => {
+    const newPinned = !isPinned;
+    setIsPinned(newPinned);
+    onPinnedChange?.(newPinned);
+    toast.info(newPinned ? 'Window pinned' : 'Window unpinned');
+  }, [isPinned, onPinnedChange]);
+  
+  const toggleMaximize = useCallback(() => {
+    setIsMaximized(prev => {
+      if (!prev) toast.info('Window maximized');
+      return !prev;
+    });
+  }, []);
+  
+  const handleMinimize = useCallback(() => {
+    onMinimize?.();
+  }, [onMinimize]);
+  
+  // ============================================
+  // CHAT HANDLERS
+  // ============================================
+  
+  const handleSend = useCallback(async () => {
     if (!inputMessage.trim()) return;
     
     if (selectedModels.length === 0) {
@@ -414,54 +522,49 @@ export function FloatingChatWindow({
       return;
     }
     
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now(),
-      type: 'user',
+      type: 'user' as const,
       content: inputMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
     
-    setMessages([...messages, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
     
-    // Simulate AI responses
+    // Simulate AI responses (replace with real API calls)
     setTimeout(() => {
-      const aiResponses = selectedModels.map((modelKey, index) => {
+      const aiResponses: Message[] = selectedModels.map((modelKey, index) => {
         const [provider, model] = modelKey.split(':');
         return {
           id: Date.now() + index + 1,
-          type: 'assistant',
+          type: 'ai' as const,
           content: `This is a simulated response from ${model}. In a real implementation, this would connect to the ${provider} API.`,
-          model: model,
-          provider: provider,
-          timestamp: new Date()
+          model,
+          provider,
+          timestamp: new Date(),
         };
       });
       
       setMessages(prev => [...prev, ...aiResponses]);
       setIsLoading(false);
     }, 1000);
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleRename = (newTitle: string) => {
-    if (newTitle.trim()) {
-      setConversationTitle(newTitle.trim());
-      toast.success('Chat renamed');
-    }
-    setShowRenameDialog(false);
-  };
-
-  const renameChat = () => {
-    setEditTitleValue(conversationTitle);
-    setIsEditingTitle(true);
-  };
-
-  const saveConversation = () => {
+  }, [inputMessage, selectedModels]);
+  
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    setConversationTitle(`Chat ${id}`);
+    toast.info('Chat cleared');
+  }, [id]);
+  
+  const newChat = useCallback(() => {
+    setMessages([]);
+    setConversationTitle(`Chat ${Date.now()}`);
+    toast.info('New chat started');
+  }, []);
+  
+  const saveConversation = useCallback(() => {
     if (messages.length === 0) {
       toast.error('No messages to save');
       return;
@@ -472,15 +575,13 @@ export function FloatingChatWindow({
       title: conversationTitle,
       messages: messages,
       models: selectedModels,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     
-    // Auto-archiving logic: if we already have 3 recent conversations, archive the oldest
     let updatedSaved = [...savedConversations];
     let updatedArchived = [...archivedConversations];
     
     if (updatedSaved.length >= 3) {
-      // Move the oldest conversation to archive
       const oldest = updatedSaved[updatedSaved.length - 1];
       updatedArchived = [oldest, ...updatedArchived];
       updatedSaved = updatedSaved.slice(0, 2);
@@ -493,25 +594,252 @@ export function FloatingChatWindow({
     localStorage.setItem('savedConversations', JSON.stringify(updatedSaved));
     localStorage.setItem('archivedConversations', JSON.stringify(updatedArchived));
     toast.success('Conversation saved');
-  };
-
-  const clearChat = () => {
+  }, [messages, conversationTitle, selectedModels, savedConversations, archivedConversations]);
+  
+  const deleteChat = useCallback(() => {
     setMessages([]);
     setConversationTitle(`Chat ${id}`);
-    toast.info('Chat cleared');
-  };
-
-  // Keyboard shortcuts
-  const newChat = useCallback(() => {
-    setMessages([]);
-    setConversationTitle(`Chat ${Date.now()}`);
-    toast.info('New chat started');
+    toast.success('Chat deleted');
+  }, [id]);
+  
+  const exportConversation = useCallback(() => {
+    if (messages.length === 0) {
+      toast.error('No messages to export');
+      return;
+    }
+    
+    const exportData = {
+      title: conversationTitle,
+      messages,
+      models: selectedModels,
+      exportedAt: new Date().toISOString(),
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${conversationTitle.replace(/[^a-z0-9]/gi, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Conversation exported');
+  }, [messages, conversationTitle, selectedModels]);
+  
+  // ============================================
+  // ATTACHMENT HANDLERS
+  // ============================================
+  
+  const handleAttach = useCallback(() => {
+    fileInputRef.current?.click();
   }, []);
-
+  
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    const newAttachments: Attachment[] = files.map(file => ({
+      id: `${Date.now()}-${Math.random()}`,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      file,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+    }));
+    
+    setAttachments(prev => [...prev, ...newAttachments]);
+    toast.success(`${files.length} file(s) attached`);
+    e.target.value = '';
+  }, []);
+  
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments(prev => {
+      const att = prev[index];
+      if (att.preview) URL.revokeObjectURL(att.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+  
+  // ============================================
+  // TITLE HANDLERS
+  // ============================================
+  
+  const handleRename = useCallback((newTitle: string) => {
+    if (newTitle.trim()) {
+      setConversationTitle(newTitle.trim());
+      toast.success('Chat renamed');
+    }
+    setShowRenameDialog(false);
+  }, []);
+  
+  const renameChat = useCallback(() => {
+    setEditTitleValue(conversationTitle);
+    setIsEditingTitle(true);
+  }, [conversationTitle]);
+  
+  const handleTitleDoubleClick = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    renameChat();
+  }, [renameChat]);
+  
+  const handleTitleTap = useCallback((e: React.MouseEvent) => {
+    const now = Date.now();
+    if (lastTapRef.current && (now - lastTapRef.current < 300)) {
+      e.preventDefault();
+      e.stopPropagation();
+      renameChat();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [renameChat]);
+  
+  // ============================================
+  // MODEL HANDLERS
+  // ============================================
+  
+  const toggleModel = useCallback((providerKey: string, model: string) => {
+    const modelKey = `${providerKey}:${model}`;
+    setSelectedModels(prev => 
+      prev.includes(modelKey) 
+        ? prev.filter(m => m !== modelKey)
+        : [...prev, modelKey]
+    );
+  }, []);
+  
+  const applyPreset = useCallback((preset: { name: string; models: string[]; id?: string }) => {
+    setSelectedModels(preset.models);
+    setShowPresets(false);
+    if (preset.id) {
+      const newStats = trackPresetUsage(preset.id);
+      setUsageStats(newStats);
+    }
+    toast.success(`Applied preset: ${preset.name}`);
+  }, []);
+  
+  const handleSummarizer = useCallback(() => {
+    if (selectedModels.length === 0) {
+      toast.error('Please select at least one AI model');
+      return;
+    }
+    
+    const aiResponses = messages.filter(m => m.type === 'ai');
+    if (aiResponses.length === 0) {
+      toast.error('No AI responses to synthesize');
+      return;
+    }
+    
+    const synthesis: Message = {
+      id: Date.now(),
+      type: 'ai' as const,
+      content: `**Synthesis of ${aiResponses.length} responses:**\n\n${aiResponses.map(r => r.content).join('\n\n---\n\n')}`,
+      model: 'Synthesis',
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, synthesis]);
+    toast.success('Synthesis generated');
+  }, [selectedModels, messages]);
+  
+  // ============================================
+  // PRESET HANDLERS
+  // ============================================
+  
+  const handleAddQuickPresets = useCallback((presets: Array<{ sourceId: string; sourceType: 'built-in' | 'custom'; name: string; models: string[] }>) => {
+    const updated = addQuickPresets(quickPresets, presets);
+    setQuickPresets(updated);
+    saveQuickPresets(updated);
+    toast.success(`Added ${presets.length} preset${presets.length > 1 ? 's' : ''} to Quick Presets`);
+  }, [quickPresets]);
+  
+  const handleEditQuickPreset = useCallback((presetId: string) => {
+    const preset = quickPresets.find(p => p.id === presetId);
+    if (!preset) return;
+    
+    setEditingQuickPresetId(presetId);
+    setEditingPreset({
+      id: preset.id,
+      name: preset.name,
+      description: preset.description || '',
+      models: preset.models,
+      type: 'custom',
+    });
+    setShowPresetEditor(true);
+  }, [quickPresets]);
+  
+  const handleRemoveQuickPreset = useCallback((presetId: string) => {
+    const updated = removeQuickPreset(quickPresets, presetId);
+    setQuickPresets(updated);
+    saveQuickPresets(updated);
+    toast.success('Preset removed from Quick Presets');
+  }, [quickPresets]);
+  
+  const savePreset = useCallback((preset: CustomPreset) => {
+    const updated = editingPreset
+      ? customPresets.map(p => p.id === preset.id ? preset : p)
+      : [...customPresets, preset];
+    
+    setCustomPresets(updated);
+    localStorage.setItem('customPresets', JSON.stringify(updated));
+    
+    if (editingQuickPresetId) {
+      const updatedQuick = updateQuickPreset(quickPresets, editingQuickPresetId, {
+        name: preset.name,
+        models: preset.models,
+      });
+      setQuickPresets(updatedQuick);
+      saveQuickPresets(updatedQuick);
+      setEditingQuickPresetId(null);
+    }
+    
+    setShowPresetEditor(false);
+    setEditingPreset(null);
+  }, [editingPreset, customPresets, editingQuickPresetId, quickPresets]);
+  
+  // ============================================
+  // CONVERSATION HANDLERS
+  // ============================================
+  
+  const loadConversation = useCallback((convo: SavedConvo) => {
+    setMessages(convo.messages || []);
+    setConversationTitle(convo.title);
+    setSelectedModels(convo.models || []);
+    toast.success(`Loaded: ${convo.title}`);
+  }, []);
+  
+  const handleDeleteSavedConversation = useCallback((convoId: string, isArchived: boolean) => {
+    if (isArchived) {
+      const updated = archivedConversations.filter(c => c.id !== convoId);
+      setArchivedConversations(updated);
+      localStorage.setItem('archivedConversations', JSON.stringify(updated));
+    } else {
+      const updated = savedConversations.filter(c => c.id !== convoId);
+      setSavedConversations(updated);
+      localStorage.setItem('savedConversations', JSON.stringify(updated));
+    }
+    toast.success('Conversation deleted');
+  }, [archivedConversations, savedConversations]);
+  
+  const handleUpdateSavedConversation = useCallback((updatedConvo: SavedConvo, isArchived: boolean) => {
+    if (isArchived) {
+      const updated = archivedConversations.map(c => c.id === updatedConvo.id ? updatedConvo : c);
+      setArchivedConversations(updated);
+      localStorage.setItem('archivedConversations', JSON.stringify(updated));
+    } else {
+      const updated = savedConversations.map(c => c.id === updatedConvo.id ? updatedConvo : c);
+      setSavedConversations(updated);
+      localStorage.setItem('savedConversations', JSON.stringify(updated));
+    }
+  }, [archivedConversations, savedConversations]);
+  
+  // ============================================
+  // KEYBOARD SHORTCUTS
+  // ============================================
+  
   const focusInput = useCallback(() => {
     inputRef.current?.focus();
   }, []);
-
+  
   useKeyboardShortcuts({
     enabled: true,
     shortcuts: [
@@ -532,1138 +860,676 @@ export function FloatingChatWindow({
       }},
     ],
   });
-
-  const deleteChat = () => {
-    setMessages([]);
-    setConversationTitle(`Chat ${id}`);
-    toast.success('Chat deleted');
-  };
-
-  const showAnalyticsPanel = () => {
-    setShowAnalytics(true);
-  };
-
-  const exportConversation = () => {
-    if (messages.length === 0) {
-      toast.error('No messages to export');
-      return;
-    }
-    
-    const exportData = {
-      title: conversationTitle,
-      messages: messages,
-      models: selectedModels,
-      exportedAt: new Date().toISOString()
-    };
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${conversationTitle.replace(/[^a-z0-9]/gi, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Conversation exported');
-  };
-
-  const toggleModel = (providerKey: string, model: string) => {
-    const modelKey = `${providerKey}:${model}`;
-    setSelectedModels(prev => 
-      prev.includes(modelKey) 
-        ? prev.filter(m => m !== modelKey)
-        : [...prev, modelKey]
-    );
-  };
-
-  const addModelFromDropdown = () => {
-    if (selectedProvider && selectedModel) {
-      const modelKey = `${selectedProvider}:${selectedModel}`;
-      if (!selectedModels.includes(modelKey)) {
-        setSelectedModels(prev => [...prev, modelKey]);
-        toast.success(`Added ${selectedModel}`);
-      }
-      setSelectedProvider('');
-      setSelectedModel('');
-    }
-  };
-
-  const applyPreset = (preset: { name: string; models: string[]; id?: string }) => {
-    setSelectedModels(preset.models);
-    setShowPresets(false);
-    // Track usage if preset has an ID
-    if (preset.id) {
-      const newStats = trackPresetUsage(preset.id);
-      setUsageStats(newStats);
-    }
-    toast.success(`Applied preset: ${preset.name}`);
-  };
-
-  const handleSummarizer = () => {
-    if (selectedModels.length === 0) {
-      toast.error('Please select at least one AI model');
-      return;
-    }
-    
-    const aiResponses = messages.filter(m => m.type === 'assistant');
-    if (aiResponses.length === 0) {
-      toast.error('No AI responses to synthesize');
-      return;
-    }
-    
-    const synthesis = {
-      id: Date.now(),
-      type: 'assistant',
-      content: `**Synthesis of ${aiResponses.length} responses:**\n\n${aiResponses.map(r => r.content).join('\n\n---\n\n')}`,
-      model: 'Synthesis',
-      timestamp: new Date()
-    };
-    
-    setMessages([...messages, synthesis]);
-    toast.success('Synthesis generated');
-  };
-
-  const loadConversation = (convo: SavedConvo) => {
-    setMessages(convo.messages || []);
-    setConversationTitle(convo.title);
-    setSelectedModels(convo.models || []);
-    toast.success(`Loaded: ${convo.title}`);
-  };
-
-  const viewAllSaved = () => {
-    setShowSavedConversationsModal(true);
-  };
-
-  const handleDeleteSavedConversation = (id: string, isArchived: boolean) => {
-    if (isArchived) {
-      const updated = archivedConversations.filter(c => c.id !== id);
-      setArchivedConversations(updated);
-      localStorage.setItem('archivedConversations', JSON.stringify(updated));
-    } else {
-      const updated = savedConversations.filter(c => c.id !== id);
-      setSavedConversations(updated);
-      localStorage.setItem('savedConversations', JSON.stringify(updated));
-    }
-    toast.success('Conversation deleted');
-  };
-
-  const handleUpdateSavedConversation = (updatedConvo: SavedConvo, isArchived: boolean) => {
-    if (isArchived) {
-      const updated = archivedConversations.map(c => c.id === updatedConvo.id ? updatedConvo : c);
-      setArchivedConversations(updated);
-      localStorage.setItem('archivedConversations', JSON.stringify(updated));
-    } else {
-      const updated = savedConversations.map(c => c.id === updatedConvo.id ? updatedConvo : c);
-      setSavedConversations(updated);
-      localStorage.setItem('savedConversations', JSON.stringify(updated));
-    }
-  };
-
-  const handleImportConversations = (saved: SavedConvo[], archived: SavedConvo[]) => {
-    setSavedConversations(saved);
-    setArchivedConversations(archived);
-    localStorage.setItem('savedConversations', JSON.stringify(saved));
-    localStorage.setItem('archivedConversations', JSON.stringify(archived));
-  };
-
-  const openPresetsSettings = () => {
-    setShowPresetsManagement(true);
-  };
-
-  const savePreset = (preset: CustomPreset) => {
-    const updated = editingPreset
-      ? customPresets.map(p => p.id === preset.id ? preset : p)
-      : [...customPresets, preset];
-    
-    setCustomPresets(updated);
-    localStorage.setItem('customPresets', JSON.stringify(updated));
-    
-    // If editing a Quick Preset, update it too
-    if (editingQuickPresetId) {
-      const updatedQuick = updateQuickPreset(quickPresets, editingQuickPresetId, {
-        name: preset.name,
-        models: preset.models
-      });
-      setQuickPresets(updatedQuick);
-      saveQuickPresets(updatedQuick);
-      setEditingQuickPresetId(null);
-    }
-    
-    setShowPresetEditor(false);
-    setEditingPreset(null);
-  };
-
-  // Quick Presets handlers
-  const handleAddQuickPresets = (presets: Array<{ sourceId: string; sourceType: 'built-in' | 'custom'; name: string; models: string[] }>) => {
-    const updated = addQuickPresets(quickPresets, presets);
-    setQuickPresets(updated);
-    saveQuickPresets(updated);
-    toast.success(`Added ${presets.length} preset${presets.length > 1 ? 's' : ''} to Quick Presets`);
-  };
-
-  const handleEditQuickPreset = (id: string) => {
-    const preset = quickPresets.find(p => p.id === id);
-    if (!preset) return;
-    
-    // Open PresetEditorModal with the Quick Preset data
-    setEditingQuickPresetId(id);
-    setEditingPreset({
-      id: preset.id,
-      name: preset.name,
-      description: '',
-      models: preset.models,
-      type: 'custom'
-    });
-    setShowPresetEditor(true);
-  };
-
-  const handleRemoveQuickPreset = (id: string) => {
-    const updated = removeQuickPreset(quickPresets, id);
-    setQuickPresets(updated);
-    saveQuickPresets(updated);
-    toast.success('Preset removed from Quick Presets');
-  };
-
-  // Window styles
+  
+  // ============================================
+  // WINDOW STYLES
+  // ============================================
+  
   const windowStyle: React.CSSProperties = isMaximized
-    ? {
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100%',
-        height: '100%',
-        borderRadius: 0
-      }
-    : {
-        top: position.y,
-        left: position.x,
-        width: `min(${windowSize.width}px, 90vw)`,
-        height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)`
-      };
-
-  if (isMinimized) {
-    windowStyle.height = 'auto';
-  }
-
+    ? { top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 0 }
+    : { top: position.y, left: position.x, width: `min(${windowSize.width}px, 90vw)`, height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)` };
+  
+  if (isMinimized) return null;
+  
+  // ============================================
+  // RENDER
+  // ============================================
+  
   return (
     <>
-    <motion.div
-      drag={!isPinned && !isMaximized}
-      dragControls={dragControls}
-      dragListener={false}
-      dragMomentum={false}
-      dragConstraints={{ left: 0, top: 0, right: window.innerWidth - 400, bottom: window.innerHeight - 200 }}
-      onDragEnd={handleDragEnd}
-      className="fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-[900]"
-      style={windowStyle}
-    >
-      {/* Header */}
-      <div 
-        className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0"
-        onDoubleClick={(e) => {
-          // Only maximize if not clicking on the title input or the title span
-          const target = e.target as HTMLElement;
-          if (target.tagName !== 'INPUT' && !target.closest('.no-drag')) {
-            toggleMaximize();
-          }
-        }}
+      {/* Hidden file input for attachments */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className={`fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-[900] ${isDragging ? 'cursor-grabbing' : ''} ${isResizing ? 'select-none' : ''}`}
+        style={windowStyle}
       >
+        {/* Header */}
         <div 
-          className="drag-handle flex items-center gap-2 cursor-move flex-1 min-w-0 mr-4 select-none"
-          style={{ touchAction: 'none' }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            handleMouseDown(e);
-          }}
-          onTouchStart={(e) => {
-            handleMouseDown(e);
+          className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0"
+          onDoubleClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName !== 'INPUT' && !target.closest('.no-drag')) {
+              toggleMaximize();
+            }
           }}
         >
-          {/* Drag Handle - Explicit drag zone */}
-          <div className="flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-colors">
-            <GripHorizontal className="h-4 w-4" />
-          </div>
-          
-          <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-          
-          {isEditingTitle ? (
-            <input
-              autoFocus
-              type="text"
-              value={editTitleValue}
-              onChange={(e) => setEditTitleValue(e.target.value)}
-              onBlur={() => {
-                handleRename(editTitleValue);
-                setIsEditingTitle(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+          <div 
+            className="drag-handle flex items-center gap-2 cursor-grab flex-1 min-w-0 mr-4 select-none"
+            style={{ touchAction: 'none' }}
+            onMouseDown={handleDragStart}
+            onTouchStart={handleDragStart}
+          >
+            <div className="flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-colors">
+              <GripHorizontal className="h-4 w-4" />
+            </div>
+            
+            <MessageSquare className="h-4 w-4 text-primary shrink-0" />
+            
+            {isEditingTitle ? (
+              <input
+                autoFocus
+                type="text"
+                value={editTitleValue}
+                onChange={(e) => setEditTitleValue(e.target.value)}
+                onBlur={() => {
                   handleRename(editTitleValue);
                   setIsEditingTitle(false);
-                } else if (e.key === 'Escape') {
-                  setIsEditingTitle(false);
-                  setEditTitleValue(conversationTitle);
-                }
-              }}
-              className="bg-background border border-primary/50 rounded px-1.5 py-0.5 text-sm w-full outline-none h-6 no-drag"
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <span 
-              onClick={(e) => {
-                // Custom double-tap detection for mobile using ref
-                const now = Date.now();
-                if (lastTapRef.current && (now - lastTapRef.current < 300)) {
-                  // Double tap detected
-                  e.preventDefault();
-                  e.stopPropagation();
-                  renameChat();
-                  lastTapRef.current = 0; // Reset
-                } else {
-                  lastTapRef.current = now;
-                }
-              }}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                renameChat();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              // Added no-drag class to prevent dragging from the title text
-              // This ensures double-tap works reliably without initiating drag
-              className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors select-none no-drag"
-              title="Double click to rename"
-            >
-              {conversationTitle}
-            </span>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={togglePin}
-            className="h-7 w-7"
-            title={isPinned ? 'Unpin' : 'Pin'}
-          >
-            <Pin className={`h-3.5 w-3.5 ${isPinned ? 'fill-current' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleMinimize}
-            className="h-7 w-7"
-            title={isMinimized ? 'Restore' : 'Minimize'}
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleMaximize}
-            className="h-7 w-7"
-            title={isMaximized ? 'Restore' : 'Maximize'}
-          >
-            {isMaximized ? (
-              <Minimize2 className="h-3.5 w-3.5" />
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRename(editTitleValue);
+                    setIsEditingTitle(false);
+                  } else if (e.key === 'Escape') {
+                    setIsEditingTitle(false);
+                    setEditTitleValue(conversationTitle);
+                  }
+                }}
+                className="bg-background border border-primary/50 rounded px-1.5 py-0.5 text-sm w-full outline-none h-6 no-drag"
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              />
             ) : (
-              <Maximize2 className="h-3.5 w-3.5" />
+              <span 
+                onClick={handleTitleTap}
+                onDoubleClick={handleTitleDoubleClick}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="font-medium text-sm truncate cursor-text hover:text-primary transition-colors select-none no-drag"
+                title="Double click to rename"
+              >
+                {conversationTitle}
+              </span>
             )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            title="Close"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+          </div>
+          
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="icon" onClick={togglePin} className="h-7 w-7" title={isPinned ? 'Unpin' : 'Pin'}>
+              <Pin className={`h-3.5 w-3.5 ${isPinned ? 'fill-current' : ''}`} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleMinimize} className="h-7 w-7" title="Minimize">
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={toggleMaximize} className="h-7 w-7" title={isMaximized ? 'Restore' : 'Maximize'}>
+              {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 text-destructive hover:text-destructive" title="Close">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Content - Hidden when minimized */}
-      {!isMinimized && (
-        <>
-          {/* Model Selector Panel */}
-          {showModelSelector && (
-            <ModelSelector
-              selectedModels={selectedModels}
-              selectedProvider={selectedProvider}
-              selectedModel={selectedModel}
-              showPresets={showPresets}
-              onToggleModel={toggleModel}
-              onProviderChange={setSelectedProvider}
-              onModelChange={setSelectedModel}
-              onAddModel={addModelFromDropdown}
-              onTogglePresets={() => setShowPresets(!showPresets)}
-              onApplyPreset={applyPreset}
-              onCreatePreset={() => {
-                setEditingPreset(null);
-                setShowPresetEditor(true);
-              }}
-              customPresets={customPresets}
-              onEditPreset={(preset) => {
-                setEditingPreset(preset);
-                setShowPresetEditor(true);
-              }}
-              onDeletePreset={(id) => {
-                const updated = customPresets.filter(p => p.id !== id);
-                setCustomPresets(updated);
-                localStorage.setItem('customPresets', JSON.stringify(updated));
-                toast.success('Preset deleted');
-              }}
-            />
-          )}
+        {/* Model Selector Panel */}
+        {showModelSelector && (
+          <ModelSelector
+            selectedModels={selectedModels}
+            selectedProvider=""
+            selectedModel=""
+            showPresets={showPresets}
+            onToggleModel={toggleModel}
+            onProviderChange={() => {}}
+            onModelChange={() => {}}
+            onAddModel={() => {}}
+            onTogglePresets={() => setShowPresets(!showPresets)}
+            onApplyPreset={applyPreset}
+            onCreatePreset={() => {
+              setEditingPreset(null);
+              setShowPresetEditor(true);
+            }}
+            customPresets={customPresets}
+            onEditPreset={(preset) => {
+              setEditingPreset(preset);
+              setShowPresetEditor(true);
+            }}
+            onDeletePreset={(presetId) => {
+              const updated = customPresets.filter(p => p.id !== presetId);
+              setCustomPresets(updated);
+              localStorage.setItem('customPresets', JSON.stringify(updated));
+              toast.success('Preset deleted');
+            }}
+          />
+        )}
 
-          {/* Presets Panel (standalone when Models not shown) */}
-          {showPresets && !showModelSelector && (
-            <div className="p-3 md:p-4 border-b border-border bg-muted/50">
-              <div className="mb-3 p-3 bg-background rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium">Quick Presets</h3>
-                  <div className="flex items-center gap-1">
-                    {/* Sort dropdown */}
-                    <PresetSortDropdown
-                      currentSort={presetSortOption}
-                      onSortChange={setPresetSortOption}
-                    />
-                    {/* Templates button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowTemplates(true)}
-                      className="h-7 w-7 p-0"
-                      title="Browse templates"
-                    >
-                      <Layout className="h-3 w-3" />
-                    </Button>
-                    {/* Import button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = '.json';
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              const imported = importPresets(ev.target?.result as string);
-                              if (imported) {
-                                const updated = [...quickPresets, ...imported];
-                                setQuickPresets(updated);
-                                saveQuickPresets(updated);
-                                toast.success(`Imported ${imported.length} preset(s)`);
-                              } else {
-                                toast.error('Invalid preset file');
-                              }
-                            };
-                            reader.readAsText(file);
-                          }
-                        };
-                        input.click();
-                      }}
-                      className="h-7 w-7 p-0"
-                      title="Import presets"
-                    >
-                      <Upload className="h-3 w-3" />
-                    </Button>
-                    {/* Export button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const json = exportPresets(quickPresets);
-                        const blob = new Blob([json], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `presets-${new Date().toISOString().split('T')[0]}.json`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                        toast.success('Presets exported');
-                      }}
-                      className="h-7 w-7 p-0"
-                      title="Export presets"
-                    >
-                      <Download className="h-3 w-3" />
-                    </Button>
-                    {/* Stats button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowStatsDashboard(true)}
-                      className="h-7 w-7 p-0"
-                      title="View statistics"
-                    >
-                      <BarChart2 className="h-3 w-3" />
-                    </Button>
-                    {/* Bulk mode button */}
-                    <Button
-                      variant={bulkMode ? "secondary" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        setBulkMode(!bulkMode);
-                        if (bulkMode) {
-                          setSelectedPresetIds(new Set());
-                        }
-                      }}
-                      className="h-7 w-7 p-0"
-                      title={bulkMode ? "Exit bulk mode" : "Bulk operations"}
-                    >
-                      <CheckSquare className="h-3 w-3" />
-                    </Button>
-                    {/* Manage categories button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowCustomCategoryModal(true)}
-                      className="h-7 w-7 p-0"
-                      title="Manage categories"
-                    >
-                      <FolderOpen className="h-3 w-3" />
-                    </Button>
-                    {/* New button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowPresetSelection(true)}
-                      className="h-7 px-2 text-xs gap-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      New
-                    </Button>
-                  </div>
-                </div>
-                {/* Search bar */}
-                <div className="relative mb-2">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search presets..."
-                    value={presetSearchQuery}
-                    onChange={(e) => setPresetSearchQuery(e.target.value)}
-                    className="w-full h-7 pl-7 pr-2 text-xs bg-muted/50 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-                {/* Category filter */}
-                <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1">
-                  <Button
-                    variant={selectedCategory === null ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setSelectedCategory(null)}
-                    className="h-6 px-2 text-xs shrink-0"
-                  >
-                    All
+        {/* Presets Panel (standalone) */}
+        {showPresets && !showModelSelector && (
+          <div className="p-3 md:p-4 border-b border-border bg-muted/50 max-h-[50vh] overflow-y-auto">
+            <div className="mb-3 p-3 bg-background rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium">Quick Presets</h3>
+                <div className="flex items-center gap-1">
+                  <PresetSortDropdown currentSort={presetSortOption} onSortChange={setPresetSortOption} />
+                  <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} className="h-7 w-7 p-0" title="Browse templates">
+                    <Layout className="h-3 w-3" />
                   </Button>
-                  {categories.map((cat) => (
-                    <Button
-                      key={cat}
-                      variant={selectedCategory === cat ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setSelectedCategory(cat)}
-                      className="h-6 px-2 text-xs shrink-0"
-                    >
-                      {cat}
-                    </Button>
-                  ))}
-                </div>
-                {/* Bulk operations bar */}
-                {bulkMode && (
-                  <BulkOperationsBar
-                    selectedIds={selectedPresetIds}
-                    presets={quickPresets}
-                    onSelectionChange={setSelectedPresetIds}
-                    onPresetsChange={(updated) => {
-                      setQuickPresets(updated);
-                      saveQuickPresets(updated);
-                    }}
-                    onExitBulkMode={() => {
-                      setBulkMode(false);
-                      setSelectedPresetIds(new Set());
-                    }}
-                  />
-                )}
-                {/* Recommendations section */}
-                {showRecommendations && quickPresets.length > 0 && !presetSearchQuery && !selectedCategory && !bulkMode && (
-                  <PresetRecommendations
-                    presets={quickPresets}
-                    usageStats={usageStats}
-                    currentModels={selectedModels}
-                    onApplyPreset={(preset) => applyPreset({ id: preset.id, name: preset.name, models: preset.models })}
-                    onDismiss={() => setShowRecommendations(false)}
-                    className="mb-3"
-                  />
-                )}
-                <div className="space-y-1">
-                  {/* Quick Presets from quickPresets state with drag-and-drop */}
-                  {(() => {
-                    let filteredPresets = quickPresets;
-                    // Apply search filter
-                    if (presetSearchQuery) {
-                      filteredPresets = searchPresets(filteredPresets, presetSearchQuery);
-                    }
-                    // Apply category filter
-                    if (selectedCategory) {
-                      filteredPresets = filterByCategory(filteredPresets, selectedCategory);
-                    }
-                    // Apply sorting
-                    return sortPresets(filteredPresets, presetSortOption, usageStats);
-                  })().map((preset, index) => (
-                    <div
-                      key={preset.id}
-                      draggable={!bulkMode}
-                      onDragStart={(e) => {
-                        if (bulkMode) return;
-                        setDraggedPresetIndex(index);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      onDragOver={(e) => {
-                        if (bulkMode) return;
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                      }}
-                      onDrop={(e) => {
-                        if (bulkMode) return;
-                        e.preventDefault();
-                        if (draggedPresetIndex !== null && draggedPresetIndex !== index) {
-                          const reordered = reorderQuickPresets(quickPresets, draggedPresetIndex, index);
-                          setQuickPresets(reordered);
-                          saveQuickPresets(reordered);
-                        }
-                        setDraggedPresetIndex(null);
-                      }}
-                      onDragEnd={() => setDraggedPresetIndex(null)}
-                      className={`flex items-center gap-1 ${draggedPresetIndex === index ? 'opacity-50' : ''}`}
-                    >
-                      {/* Bulk selection checkbox */}
-                      {bulkMode && (
-                        <input
-                          type="checkbox"
-                          checked={selectedPresetIds.has(preset.id)}
-                          onChange={(e) => {
-                            const newSet = new Set(selectedPresetIds);
-                            if (e.target.checked) {
-                              newSet.add(preset.id);
-                            } else {
-                              newSet.delete(preset.id);
-                            }
-                            setSelectedPresetIds(newSet);
-                          }}
-                          className="h-4 w-4 rounded border-border"
-                        />
-                      )}
-                      {/* Drag handle */}
-                      {!bulkMode && (
-                        <div className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground">
-                          <GripVertical className="h-3 w-3" />
-                        </div>
-                      )}
-                      
-                      {/* Editable preset name or button */}
-                      {editingQuickPresetId === preset.id ? (
-                        <div className="flex-1 flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={editingQuickPresetName}
-                            onChange={(e) => setEditingQuickPresetName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                const updated = updateQuickPreset(quickPresets, preset.id, { name: editingQuickPresetName });
-                                setQuickPresets(updated);
-                                saveQuickPresets(updated);
-                                setEditingQuickPresetId(null);
-                                toast.success('Preset renamed');
-                              } else if (e.key === 'Escape') {
-                                setEditingQuickPresetId(null);
-                              }
-                            }}
-                            autoFocus
-                            className="flex-1 h-7 px-2 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const updated = updateQuickPreset(quickPresets, preset.id, { name: editingQuickPresetName });
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.json';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const imported = importPresets(ev.target?.result as string);
+                            if (imported) {
+                              const updated = [...quickPresets, ...imported];
                               setQuickPresets(updated);
                               saveQuickPresets(updated);
-                              setEditingQuickPresetId(null);
-                              toast.success('Preset renamed');
-                            }}
-                            className="h-7 w-7 p-0 text-primary"
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => applyPreset({ id: preset.id, name: preset.name, models: preset.models })}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            setEditingQuickPresetId(preset.id);
-                            setEditingQuickPresetName(preset.name);
-                          }}
-                          className="flex-1 justify-between text-xs h-8 group relative"
-                          title={preset.description || 'Double-click to rename'}
-                        >
-                          <span className="flex items-center gap-1 flex-1 text-left truncate">
-                            {preset.isFavorite && <Star className="h-3 w-3 text-yellow-500 fill-current flex-shrink-0" />}
-                            {preset.name}
-                            {preset.isModified && <span className="ml-1 text-muted-foreground">*</span>}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
-                              {preset.models.length}
-                            </span>
-                            {usageStats[preset.id]?.usageCount > 0 && (
-                              <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-[9px]" title={`Used ${usageStats[preset.id].usageCount} times`}>
-                                <BarChart2 className="h-2.5 w-2.5 inline mr-0.5" />
-                                {usageStats[preset.id].usageCount}
-                              </span>
-                            )}
-                          </span>
-                          {/* Description tooltip on hover */}
-                          {preset.description && (
-                            <span className="absolute -bottom-8 left-0 right-0 bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
-                              {preset.description}
-                            </span>
-                          )}
-                        </Button>
-                      )}
-                      
-                      {/* Edit button */}
-                      {editingQuickPresetId !== preset.id && (
+                              toast.success(`Imported ${imported.length} preset(s)`);
+                            } else {
+                              toast.error('Invalid preset file');
+                            }
+                          };
+                          reader.readAsText(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                    className="h-7 w-7 p-0"
+                    title="Import presets"
+                  >
+                    <Upload className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const json = exportPresets(quickPresets);
+                      const blob = new Blob([json], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `presets-${new Date().toISOString().split('T')[0]}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('Presets exported');
+                    }}
+                    className="h-7 w-7 p-0"
+                    title="Export presets"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowStatsDashboard(true)} className="h-7 w-7 p-0" title="View statistics">
+                    <BarChart2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant={bulkMode ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => {
+                      setBulkMode(!bulkMode);
+                      if (bulkMode) setSelectedPresetIds(new Set());
+                    }}
+                    className="h-7 w-7 p-0"
+                    title={bulkMode ? "Exit bulk mode" : "Bulk operations"}
+                  >
+                    <CheckSquare className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowCustomCategoryModal(true)} className="h-7 w-7 p-0" title="Manage categories">
+                    <FolderOpen className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowPresetSelection(true)} className="h-7 px-2 text-xs gap-1">
+                    <Plus className="h-3 w-3" />
+                    New
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Search bar */}
+              <div className="relative mb-2">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search presets..."
+                  value={presetSearchQuery}
+                  onChange={(e) => setPresetSearchQuery(e.target.value)}
+                  className="w-full h-7 pl-7 pr-2 text-xs bg-muted/50 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              
+              {/* Category filter */}
+              <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1">
+                <Button
+                  variant={selectedCategory === null ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSelectedCategory(null)}
+                  className="h-6 px-2 text-xs shrink-0"
+                >
+                  All
+                </Button>
+                {categories.map((cat) => (
+                  <Button
+                    key={cat}
+                    variant={selectedCategory === cat ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setSelectedCategory(cat)}
+                    className="h-6 px-2 text-xs shrink-0"
+                  >
+                    {cat}
+                  </Button>
+                ))}
+              </div>
+              
+              {/* Bulk operations bar */}
+              {bulkMode && (
+                <BulkOperationsBar
+                  selectedIds={selectedPresetIds}
+                  presets={quickPresets}
+                  onSelectionChange={setSelectedPresetIds}
+                  onPresetsChange={(updated) => {
+                    setQuickPresets(updated);
+                    saveQuickPresets(updated);
+                  }}
+                  onExitBulkMode={() => {
+                    setBulkMode(false);
+                    setSelectedPresetIds(new Set());
+                  }}
+                />
+              )}
+              
+              {/* Recommendations */}
+              {showRecommendations && quickPresets.length > 0 && !presetSearchQuery && !selectedCategory && !bulkMode && (
+                <PresetRecommendations
+                  presets={quickPresets}
+                  usageStats={usageStats}
+                  currentModels={selectedModels}
+                  onApplyPreset={(preset) => applyPreset({ id: preset.id, name: preset.name, models: preset.models })}
+                  onDismiss={() => setShowRecommendations(false)}
+                  className="mb-3"
+                />
+              )}
+              
+              {/* Preset list */}
+              <div className="space-y-1">
+                {filteredPresets.map((preset, index) => (
+                  <div
+                    key={preset.id}
+                    draggable={canDragPresets && !bulkMode}
+                    onDragStart={() => {
+                      if (!canDragPresets || bulkMode) return;
+                      setDraggedPresetIndex(filteredToOriginalIndex.get(index) ?? index);
+                    }}
+                    onDragOver={(e) => {
+                      if (!canDragPresets || bulkMode) return;
+                      e.preventDefault();
+                    }}
+                    onDrop={() => {
+                      if (!canDragPresets || bulkMode || draggedPresetIndex === null) return;
+                      const targetOriginalIndex = filteredToOriginalIndex.get(index) ?? index;
+                      if (draggedPresetIndex !== targetOriginalIndex) {
+                        const reordered = reorderQuickPresets(quickPresets, draggedPresetIndex, targetOriginalIndex);
+                        setQuickPresets(reordered);
+                        saveQuickPresets(reordered);
+                      }
+                      setDraggedPresetIndex(null);
+                    }}
+                    onDragEnd={() => setDraggedPresetIndex(null)}
+                    className={`flex items-center gap-1 ${draggedPresetIndex === (filteredToOriginalIndex.get(index) ?? index) ? 'opacity-50' : ''}`}
+                  >
+                    {bulkMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedPresetIds.has(preset.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedPresetIds);
+                          if (e.target.checked) newSet.add(preset.id);
+                          else newSet.delete(preset.id);
+                          setSelectedPresetIds(newSet);
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applyPreset({ id: preset.id, name: preset.name, models: preset.models })}
+                      className="flex-1 justify-between text-xs h-8"
+                    >
+                      <span className="flex items-center gap-1 flex-1 text-left truncate">
+                        {preset.isFavorite && <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />}
+                        {preset.name}
+                        {preset.isModified && <span className="text-[8px] text-muted-foreground">(modified)</span>}
+                      </span>
+                      <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-medium">
+                        {preset.models.length}
+                      </span>
+                    </Button>
+                    
+                    {/* Favorite button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const updated = toggleFavorite(quickPresets, preset.id);
+                        setQuickPresets(updated);
+                        saveQuickPresets(updated);
+                      }}
+                      className={`h-8 w-8 p-0 ${preset.isFavorite ? 'text-yellow-500' : ''}`}
+                      title={preset.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <Star className={`h-3 w-3 ${preset.isFavorite ? 'fill-current' : ''}`} />
+                    </Button>
+                    
+                    {/* Edit button */}
+                    <Button variant="ghost" size="sm" onClick={() => handleEditQuickPreset(preset.id)} className="h-8 w-8 p-0" title="Edit preset">
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    
+                    {/* Duplicate button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const updated = duplicatePreset(quickPresets, preset.id);
+                        setQuickPresets(updated);
+                        saveQuickPresets(updated);
+                        toast.success('Preset duplicated');
+                      }}
+                      className="h-8 w-8 p-0"
+                      title="Duplicate preset"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                    
+                    {/* Category dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setEditingQuickPresetId(preset.id);
-                            setEditingQuickPresetName(preset.name);
-                          }}
-                          className="h-8 w-8 p-0"
-                          title="Edit preset name"
+                          className={`h-8 w-8 p-0 ${preset.category ? 'text-primary' : ''}`}
+                          title={preset.category ? `Category: ${preset.category}` : 'Set category'}
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Tag className="h-3 w-3" />
                         </Button>
-                      )}
-                      
-                      {/* Favorite button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const updated = toggleFavorite(quickPresets, preset.id);
-                          setQuickPresets(updated);
-                          saveQuickPresets(updated);
-                          toast.success(preset.isFavorite ? 'Removed from favorites' : 'Added to favorites');
-                        }}
-                        className={`h-8 w-8 p-0 ${preset.isFavorite ? 'text-yellow-500' : ''}`}
-                        title={preset.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                      >
-                        <Star className={`h-3 w-3 ${preset.isFavorite ? 'fill-current' : ''}`} />
-                      </Button>
-                      
-                      {/* History button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setVersionHistoryPresetId(preset.id);
-                          setVersionHistoryPresetName(preset.name);
-                          setShowVersionHistory(true);
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="View version history"
-                      >
-                        <History className="h-3 w-3" />
-                      </Button>
-                      
-                      {/* Duplicate button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const updated = duplicatePreset(quickPresets, preset.id);
-                          setQuickPresets(updated);
-                          saveQuickPresets(updated);
-                          toast.success(`Duplicated "${preset.name}"`);
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Duplicate preset"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                      
-                      {/* Category dropdown */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={`h-8 w-8 p-0 ${preset.category ? 'text-primary' : ''}`}
-                            title={preset.category ? `Category: ${preset.category}` : 'Set category'}
-                          >
-                            <Tag className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuLabel>Set Category</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuLabel>Set Category</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const updated = setPresetCategory(quickPresets, preset.id, undefined);
+                            setQuickPresets(updated);
+                            saveQuickPresets(updated);
+                          }}
+                        >
+                          <span className={!preset.category ? 'font-medium' : ''}>None</span>
+                        </DropdownMenuItem>
+                        {categories.map((cat) => (
                           <DropdownMenuItem
+                            key={cat}
                             onClick={() => {
-                              const updated = setPresetCategory(quickPresets, preset.id, undefined);
+                              const updated = setPresetCategory(quickPresets, preset.id, cat);
                               setQuickPresets(updated);
                               saveQuickPresets(updated);
+                              toast.success(`Set category to "${cat}"`);
                             }}
                           >
-                            <span className={!preset.category ? 'font-medium' : ''}>None</span>
+                            <span className={preset.category === cat ? 'font-medium' : ''}>{cat}</span>
                           </DropdownMenuItem>
-                          {categories.map((cat) => (
-                            <DropdownMenuItem
-                              key={cat}
-                              onClick={() => {
-                                const updated = setPresetCategory(quickPresets, preset.id, cat);
-                                setQuickPresets(updated);
-                                saveQuickPresets(updated);
-                                toast.success(`Set category to "${cat}"`);
-                              }}
-                            >
-                              <span className={preset.category === cat ? 'font-medium' : ''}>{cat}</span>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      
-                      {/* Share button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const shareUrl = generateShareableUrl(preset);
-                          navigator.clipboard.writeText(shareUrl);
-                          toast.success('Share link copied to clipboard!');
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Copy share link"
-                      >
-                        <Share2 className="h-3 w-3" />
-                      </Button>
-                      
-                      {/* Remove button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const updated = removeQuickPreset(quickPresets, preset.id);
-                          setQuickPresets(updated);
-                          saveQuickPresets(updated);
-                          toast.success('Preset removed from Quick Presets');
-                        }}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        title="Remove from Quick Presets"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  {quickPresets.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">
-                      No quick presets. Click "+ New" to add presets.
-                    </p>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    {/* Share button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const shareUrl = generateShareableUrl(preset);
+                        navigator.clipboard.writeText(shareUrl);
+                        toast.success('Share link copied to clipboard!');
+                      }}
+                      className="h-8 w-8 p-0"
+                      title="Copy share link"
+                    >
+                      <Share2 className="h-3 w-3" />
+                    </Button>
+                    
+                    {/* Remove button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveQuickPreset(preset.id)}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      title="Remove from Quick Presets"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                {quickPresets.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No quick presets. Click "+ New" to add presets.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
+              <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
+              <p className="text-sm">No messages yet</p>
+              <p className="text-xs mt-1">Select models and start chatting</p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${msg.type === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  {msg.type === 'ai' && msg.model && (
+                    <div className="text-xs text-muted-foreground mb-1 font-medium">{msg.model}</div>
                   )}
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))
+          )}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-lg px-3 py-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
               </div>
             </div>
           )}
+        </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
-                <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
-                <p className="text-sm">No messages yet</p>
-                <p className="text-xs mt-1">Select models and start chatting</p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                      msg.type === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    {msg.type === 'assistant' && msg.model && (
-                      <div className="text-xs text-muted-foreground mb-1 font-medium">
-                        {msg.model}
-                      </div>
-                    )}
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                </div>
-              ))
-            )}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-lg px-3 py-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        {/* Footer */}
+        <ChatFooter
+          selectedModelsCount={selectedModels.length}
+          inputMessage={inputMessage}
+          onInputChange={setInputMessage}
+          onModelsClick={() => {
+            setShowPresets(false);
+            setShowModelSelector(!showModelSelector);
+          }}
+          onSettingsClick={() => setShowSettings(!showSettings)}
+          onSummarizerClick={handleSummarizer}
+          onPresetsClick={() => {
+            setShowPresets(!showPresets);
+            setShowModelSelector(false);
+          }}
+          onNewChat={clearChat}
+          onSave={saveConversation}
+          onSend={handleSend}
+          onAttach={handleAttach}
+          isLoading={isLoading}
+          onClearChat={clearChat}
+          onDeleteChat={deleteChat}
+          onRenameChat={renameChat}
+          onShowAnalytics={() => setShowAnalytics(true)}
+          onExportData={exportConversation}
+          onPresetsSettings={() => setShowPresetsManagement(true)}
+          messagesCount={messages.length}
+          attachments={attachments}
+          onRemoveAttachment={removeAttachment}
+          savedConversations={savedConversations}
+          onLoadConversation={loadConversation}
+          onViewAllSaved={() => setShowSavedConversationsModal(true)}
+          archivedCount={archivedConversations.length}
+        />
+        
+        {/* Resize Handles */}
+        {!isMaximized && (
+          <>
+            {/* Edge handles */}
+            <div className="absolute top-0 left-3 right-3 h-1.5 cursor-n-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'n')} onTouchStart={(e) => handleResizeStart(e, 'n')} />
+            <div className="absolute bottom-0 left-3 right-3 h-1.5 cursor-s-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 's')} onTouchStart={(e) => handleResizeStart(e, 's')} />
+            <div className="absolute left-0 top-3 bottom-3 w-1.5 cursor-w-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'w')} onTouchStart={(e) => handleResizeStart(e, 'w')} />
+            <div className="absolute right-0 top-3 bottom-3 w-1.5 cursor-e-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'e')} onTouchStart={(e) => handleResizeStart(e, 'e')} />
+            
+            {/* Corner handles */}
+            <div className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'nw')} onTouchStart={(e) => handleResizeStart(e, 'nw')} />
+            <div className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'ne')} onTouchStart={(e) => handleResizeStart(e, 'ne')} />
+            <div className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'sw')} onTouchStart={(e) => handleResizeStart(e, 'sw')} />
+            <div className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize hover:bg-primary/20 transition-colors" onMouseDown={(e) => handleResizeStart(e, 'se')} onTouchStart={(e) => handleResizeStart(e, 'se')} />
+          </>
+        )}
+      </motion.div>
 
-          {/* Footer */}
-          <ChatFooter
-            selectedModelsCount={selectedModels.length}
-            inputMessage={inputMessage}
-            onInputChange={setInputMessage}
-            onModelsClick={() => {
-              setShowPresets(false);
-              setShowModelSelector(!showModelSelector);
-            }}
-            onSettingsClick={() => setShowSettings(!showSettings)}
-            onSummarizerClick={handleSummarizer}
-            onPresetsClick={() => {
-              setShowPresets(!showPresets);
-              setShowModelSelector(false);
-            }}
-            onNewChat={clearChat}
-            onSave={saveConversation}
-            onSend={handleSend}
-            onAttach={() => {}}
-            isLoading={isLoading}
-            onClearChat={clearChat}
-            onDeleteChat={deleteChat}
-            onRenameChat={renameChat}
-            onShowAnalytics={showAnalyticsPanel}
-            onExportData={exportConversation}
-            onPresetsSettings={openPresetsSettings}
-            messagesCount={messages.length}
-            attachments={attachments}
-            onRemoveAttachment={removeAttachment}
-            savedConversations={savedConversations}
-            onLoadConversation={loadConversation}
-            onViewAllSaved={viewAllSaved}
-            archivedCount={archivedConversations.length}
-          />
-        </>
+      {/* Modals */}
+      {showSettings && <SettingsMenu onClose={() => setShowSettings(false)} onPresetsManagement={() => setShowPresetsManagement(true)} />}
+      
+      {showAnalytics && (
+        <AnalyticsPanel 
+          isOpen={showAnalytics}
+          onClose={() => setShowAnalytics(false)} 
+          messages={messages} 
+          conversationTitle={conversationTitle}
+        />
       )}
       
-      {/* Resize Handles - All edges and corners */}
-      {!isMaximized && !isMinimized && (
-        <>
-          {/* Edge handles */}
-          {/* North edge */}
-          <div
-            className="absolute top-0 left-3 right-3 h-1.5 cursor-n-resize hover:bg-primary/20 transition-colors"
-            onMouseDown={(e) => handleResizeStart(e, 'n')}
-            onTouchStart={(e) => handleResizeStart(e, 'n')}
-          />
-          {/* South edge */}
-          <div
-            className="absolute bottom-0 left-3 right-3 h-1.5 cursor-s-resize hover:bg-primary/20 transition-colors"
-            onMouseDown={(e) => handleResizeStart(e, 's')}
-            onTouchStart={(e) => handleResizeStart(e, 's')}
-          />
-          {/* West edge */}
-          <div
-            className="absolute left-0 top-3 bottom-3 w-1.5 cursor-w-resize hover:bg-primary/20 transition-colors"
-            onMouseDown={(e) => handleResizeStart(e, 'w')}
-            onTouchStart={(e) => handleResizeStart(e, 'w')}
-          />
-          {/* East edge */}
-          <div
-            className="absolute right-0 top-3 bottom-3 w-1.5 cursor-e-resize hover:bg-primary/20 transition-colors"
-            onMouseDown={(e) => handleResizeStart(e, 'e')}
-            onTouchStart={(e) => handleResizeStart(e, 'e')}
-          />
-          
-          {/* Corner handles */}
-          {/* Northwest corner */}
-          <div
-            className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize hover:bg-primary/30 transition-colors rounded-tl-lg"
-            onMouseDown={(e) => handleResizeStart(e, 'nw')}
-            onTouchStart={(e) => handleResizeStart(e, 'nw')}
-          />
-          {/* Northeast corner */}
-          <div
-            className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize hover:bg-primary/30 transition-colors rounded-tr-lg"
-            onMouseDown={(e) => handleResizeStart(e, 'ne')}
-            onTouchStart={(e) => handleResizeStart(e, 'ne')}
-          />
-          {/* Southwest corner */}
-          <div
-            className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize hover:bg-primary/30 transition-colors rounded-bl-lg"
-            onMouseDown={(e) => handleResizeStart(e, 'sw')}
-            onTouchStart={(e) => handleResizeStart(e, 'sw')}
-          />
-          {/* Southeast corner - with visual indicator */}
-          <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize group"
-            onMouseDown={(e) => handleResizeStart(e, 'se')}
-            onTouchStart={(e) => handleResizeStart(e, 'se')}
-          >
-            <svg
-              className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
-            </svg>
-          </div>
-        </>
+      {showPresetEditor && (
+        <PresetEditorModal
+          isOpen={showPresetEditor}
+          editingPreset={editingPreset}
+          onSave={savePreset}
+          onClose={() => {
+            setShowPresetEditor(false);
+            setEditingPreset(null);
+            setEditingQuickPresetId(null);
+          }}
+        />
       )}
-    </motion.div>
-    
-    {/* Preset Editor Modal */}
-    <PresetEditorModal
-      isOpen={showPresetEditor}
-      onClose={() => {
-        setShowPresetEditor(false);
-        setEditingPreset(null);
-      }}
-      editingPreset={editingPreset}
-      onSave={savePreset}
-    />
-    
-    {/* Presets Management Modal */}
-    {showPresetsManagement && (
-      <PresetsManagementModal
-        AI_PROVIDERS={AI_PROVIDERS}
-        customPresets={customPresets}
-        builtInPresets={MODEL_PRESETS}
-        defaultModels={defaultModels}
-        onSaveCustomPresets={(presets) => {
-          setCustomPresets(presets);
-          localStorage.setItem('customPresets', JSON.stringify(presets));
-        }}
-        onSaveDefaultModels={(models) => {
-          setDefaultModels(models);
-          localStorage.setItem('defaultModels', JSON.stringify(models));
-        }}
-        onClose={() => setShowPresetsManagement(false)}
-      />
-    )}
-    
-    {/* Rename Chat Dialog */}
-    <RenameChatDialog
-      isOpen={showRenameDialog}
-      currentTitle={conversationTitle}
-      onClose={() => setShowRenameDialog(false)}
-      onRename={handleRename}
-    />
-    
-    {/* Analytics Panel */}
-    <AnalyticsPanel
-      isOpen={showAnalytics}
-      onClose={() => setShowAnalytics(false)}
-      messages={messages}
-      conversationTitle={conversationTitle}
-    />
-
-    {/* Preset Selection Dialog */}
-    <PresetSelectionDialog
-      open={showPresetSelection}
-      onOpenChange={setShowPresetSelection}
-      customPresets={customPresets}
-      quickPresets={quickPresets}
-      onAdd={handleAddQuickPresets}
-      onCreateNew={() => {
-        setShowPresetSelection(false);
-        setEditingPreset(null);
-        setShowPresetEditor(true);
-      }}
-    />
-
-    {/* Saved Conversations Modal */}
-    <SavedConversationsModal
-      isOpen={showSavedConversationsModal}
-      onClose={() => setShowSavedConversationsModal(false)}
-      savedConversations={savedConversations}
-      archivedConversations={archivedConversations}
-      onLoadConversation={loadConversation}
-      onDeleteConversation={handleDeleteSavedConversation}
-      onUpdateConversation={handleUpdateSavedConversation}
-      onImport={handleImportConversations}
-    />
-
-    {/* Keyboard Shortcuts Help */}
-    <KeyboardShortcutsHelp
-      isOpen={showKeyboardHelp}
-      onClose={() => setShowKeyboardHelp(false)}
-    />
-    
-    {/* Preset Templates Modal */}
-    <PresetTemplatesModal
-      open={showTemplates}
-      onOpenChange={setShowTemplates}
-      onAddPreset={(preset) => {
-        const updated = [...quickPresets, preset];
-        setQuickPresets(updated);
-        saveQuickPresets(updated);
-        toast.success(`Added template: ${preset.name}`);
-      }}
-      existingPresetNames={quickPresets.map(p => p.name)}
-    />
-    
-    {/* Preset Version History Modal */}
-    <PresetVersionHistoryModal
-      open={showVersionHistory}
-      onOpenChange={setShowVersionHistory}
-      presetId={versionHistoryPresetId}
-      presetName={versionHistoryPresetName}
-      onRestore={(version) => {
-        const updated = restorePresetVersion(quickPresets, versionHistoryPresetId, version);
-        setQuickPresets(updated);
-        saveQuickPresets(updated);
-        toast.success(`Restored preset to version from ${new Date(version.timestamp).toLocaleString()}`);
-      }}
-    />
-    
-    {/* Preset Statistics Dashboard */}
-    {showStatsDashboard && (
-      <PresetStatsDashboard
-        presets={quickPresets}
-        usageStats={usageStats}
-        onClose={() => setShowStatsDashboard(false)}
-        onSelectPreset={(presetId) => {
-          const preset = quickPresets.find(p => p.id === presetId);
-          if (preset) {
-            applyPreset({ id: preset.id, name: preset.name, models: preset.models });
-            setShowStatsDashboard(false);
-          }
-        }}
-      />
-    )}
-    
-    {/* Custom Category Modal */}
-    {showCustomCategoryModal && (
-      <CustomCategoryModal
-        onClose={() => setShowCustomCategoryModal(false)}
-        onCategoriesChange={() => {
-          setCategories(getAllCategories());
-        }}
-      />
-    )}
+      
+      {showPresetsManagement && (
+        <PresetsManagementModal
+          AI_PROVIDERS={AI_PROVIDERS}
+          customPresets={customPresets}
+          builtInPresets={MODEL_PRESETS}
+          defaultModels={selectedModels}
+          onClose={() => setShowPresetsManagement(false)}
+          onSaveCustomPresets={(presets) => {
+            setCustomPresets(presets);
+            localStorage.setItem('customPresets', JSON.stringify(presets));
+          }}
+          onSaveDefaultModels={(models) => setSelectedModels(models)}
+        />
+      )}
+      
+      {showPresetSelection && (
+        <PresetSelectionDialog
+          open={showPresetSelection}
+          onOpenChange={(open) => setShowPresetSelection(open)}
+          customPresets={customPresets}
+          quickPresets={quickPresets}
+          onAdd={handleAddQuickPresets}
+        />
+      )}
+      
+      {showSavedConversationsModal && (
+        <SavedConversationsModal
+          isOpen={showSavedConversationsModal}
+          onClose={() => setShowSavedConversationsModal(false)}
+          savedConversations={savedConversations}
+          archivedConversations={archivedConversations}
+          onLoadConversation={loadConversation}
+          onDeleteConversation={handleDeleteSavedConversation}
+          onUpdateConversation={handleUpdateSavedConversation}
+          onImport={(saved, archived) => {
+            setSavedConversations(saved);
+            setArchivedConversations(archived);
+            localStorage.setItem('savedConversations', JSON.stringify(saved));
+            localStorage.setItem('archivedConversations', JSON.stringify(archived));
+          }}
+        />
+      )}
+      
+      {showKeyboardHelp && <KeyboardShortcutsHelp isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />}
+      
+      {showTemplates && (
+        <PresetTemplatesModal
+          open={showTemplates}
+          onOpenChange={(open) => setShowTemplates(open)}
+          existingPresetNames={quickPresets.map(p => p.name)}
+          onAddPreset={(preset) => {
+            const updated = [...quickPresets, preset];
+            setQuickPresets(updated);
+            saveQuickPresets(updated);
+            toast.success(`Added template: ${preset.name}`);
+          }}
+        />
+      )}
+      
+      {showVersionHistory && (
+        <PresetVersionHistoryModal
+          open={showVersionHistory}
+          onOpenChange={(open) => setShowVersionHistory(open)}
+          presetId={versionHistoryPresetId}
+          presetName={versionHistoryPresetName}
+          onRestore={(version) => {
+            const updated = restorePresetVersion(quickPresets, versionHistoryPresetId, version);
+            setQuickPresets(updated);
+            saveQuickPresets(updated);
+            toast.success('Preset restored to previous version');
+          }}
+        />
+      )}
+      
+      {showStatsDashboard && (
+        <PresetStatsDashboard
+          presets={quickPresets}
+          usageStats={usageStats}
+          onClose={() => setShowStatsDashboard(false)}
+        />
+      )}
+      
+      {showCustomCategoryModal && (
+        <CustomCategoryModal
+          onClose={() => setShowCustomCategoryModal(false)}
+          onCategoriesChange={() => {
+            setCategories(getAllCategories());
+          }}
+        />
+      )}
+      
+      {showRenameDialog && (
+        <RenameChatDialog
+          isOpen={showRenameDialog}
+          currentTitle={conversationTitle}
+          onRename={handleRename}
+          onClose={() => setShowRenameDialog(false)}
+        />
+      )}
     </>
   );
 }
