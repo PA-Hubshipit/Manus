@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { MessageSquare, Maximize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Z_CLASS } from '@/lib/z-index';
 
 interface MinimizedWindow {
   id: string;
@@ -22,7 +23,7 @@ export function WindowDock({ minimizedWindows, onRestore, onClose }: WindowDockP
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 100, opacity: 0 }}
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[230]"
+      className={`fixed bottom-4 left-1/2 -translate-x-1/2 ${Z_CLASS.DROPDOWN}`}
     >
       <div className="flex items-center gap-2 px-3 py-2 bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg">
         {minimizedWindows.map((window) => (

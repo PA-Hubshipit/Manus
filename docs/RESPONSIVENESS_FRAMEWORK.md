@@ -1,415 +1,405 @@
 # Responsiveness Framework
 
-**Multi-AI Chat Project Knowledge Base**
+This document describes the complete responsiveness framework for the Multi-AI Chat application, including the centralized z-index management system, responsive design utilities, and component templates.
 
-*Author: Manus AI | Last Updated: December 2024*
+## Table of Contents
 
----
-
-## Overview
-
-This framework serves as the definitive guide for building and maintaining responsive interfaces in the Multi-AI Chat application. It consolidates lessons learned from past development cycles and establishes standards to prevent recurring issues.
-
-The framework is organized around three axes:
-1. **Performance** - Technical foundations and optimization
-2. **Methodology** - Development workflow and processes
-3. **Evaluation** - Testing and measurement criteria
+1. [Z-Index Management System](#z-index-management-system)
+2. [Responsive Design Utilities](#responsive-design-utilities)
+3. [Component Templates](#component-templates)
+4. [ESLint Rules](#eslint-rules)
+5. [Best Practices](#best-practices)
+6. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Axe 1: Performance Foundations
+## Z-Index Management System
 
-### 1.1 Mobile-First Design Principle
+### Why Centralized Z-Index?
 
-Always start development with the smallest viewport (320px width) and progressively enhance for larger screens. This ensures core functionality works on all devices before adding complexity.
+Without a centralized system, z-index values become scattered across components, leading to overlapping elements, dropdowns appearing behind modals, tooltips hidden by other elements, and difficult debugging of layering issues.
 
-**Implementation in Our Stack:**
+### The Z-Index Scale
 
-```css
-/* Base styles (mobile) */
-.component {
-  @apply flex flex-col gap-2 p-2;
-}
+All z-index values are defined in `/client/src/lib/z-index.ts`:
 
-/* Tablet and up */
-@media (min-width: 768px) {
-  .component {
-    @apply flex-row gap-4 p-4;
-  }
-}
+| Layer | Value | Use Case |
+|-------|-------|----------|
+| `BELOW` | -1 | Background elements, decorations |
+| `BASE` | 0 | Normal document flow |
+| `ABOVE` | 50 | Elements slightly above normal flow |
+| `ELEVATED` | 100 | Cards with elevation, raised elements |
+| `STICKY` | 150 | Sticky headers, floating action buttons |
+| `FLOATING` | 200 | Floating windows, chat windows |
+| `DROPDOWN` | 250 | Dropdown menus, select menus |
+| `POPOVER` | 300 | Popovers, tooltips |
+| `MODAL_BACKDROP` | 350 | Dark backdrop behind modals |
+| `MODAL` | 400 | Modal dialogs, full-screen overlays |
+| `NESTED_MODAL` | 450 | Modals inside modals, confirmation dialogs |
+| `TOAST` | 500 | Toast notifications, snackbars |
+| `CRITICAL` | 9999 | System-level overlays, loading screens |
 
-/* Desktop and up */
-@media (min-width: 1024px) {
-  .component {
-    @apply gap-6 p-6;
-  }
-}
-```
+### How to Use
 
-**Tailwind Breakpoint Reference:**
+#### Option 1: Z_CLASS Constants (Recommended)
 
-| Breakpoint | Min Width | Target Devices |
-|------------|-----------|----------------|
-| `sm:` | 640px | Large phones (landscape) |
-| `md:` | 768px | Tablets |
-| `lg:` | 1024px | Small laptops |
-| `xl:` | 1280px | Desktops |
-| `2xl:` | 1536px | Large screens |
-
-### 1.2 Fluid Layouts with Flexbox and Grid
-
-Prefer relative units and flexible layouts over fixed dimensions.
-
-**Do This:**
 ```tsx
-<div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
-  <div className="flex-1 min-w-0">Content</div>
-  <div className="w-full md:w-64 flex-shrink-0">Sidebar</div>
+import { Z_CLASS } from '@/lib/z-index';
+
+<div className={`fixed inset-0 ${Z_CLASS.MODAL_BACKDROP}`}>
+  <div className={`bg-card rounded-lg ${Z_CLASS.MODAL}`}>
+    Modal content
+  </div>
 </div>
 ```
 
-**Avoid This:**
+#### Option 2: Z_INDEX Values
+
 ```tsx
-<div className="flex" style={{ width: '800px' }}>
-  <div style={{ width: '600px' }}>Content</div>
-  <div style={{ width: '200px' }}>Sidebar</div>
+import { Z_INDEX } from '@/lib/z-index';
+
+<div className={`z-[${Z_INDEX.MODAL}]`}>
+  Modal content
 </div>
 ```
 
-**Critical Rule:** Always add `min-w-0` to flex children that contain text to prevent overflow issues.
+#### Option 3: Inline Styles
 
-### 1.3 Touch-Friendly Targets
-
-All interactive elements must meet minimum touch target sizes.
-
-| Element Type | Minimum Size | Recommended Size |
-|--------------|--------------|------------------|
-| Buttons | 44×44px | 48×48px |
-| Icon buttons | 40×40px | 44×44px |
-| List items | 44px height | 48px height |
-| Form inputs | 44px height | 48px height |
-| Spacing between targets | 8px | 12px |
-
-**Implementation:**
 ```tsx
-// Icon button with proper touch target
-<button className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
-  <Icon className="w-5 h-5" />
-</button>
+import { getZIndexStyle } from '@/lib/z-index';
+
+<div style={getZIndexStyle('MODAL')}>
+  Modal content
+</div>
 ```
 
-### 1.4 Z-Index Management System
+### Component-Specific Mappings
 
-A standardized z-index scale prevents layering conflicts.
+The `COMPONENT_Z_INDEX` object provides recommended z-index layers for common component types:
 
-| Layer | Z-Index | Usage |
-|-------|---------|-------|
-| Base content | 0-10 | Normal page content |
-| Floating elements | 50 | Tooltips, popovers |
-| Sticky headers | 100 | Fixed navigation |
-| Dropdowns | 200 | Select menus, dropdown menus |
-| Modals backdrop | 300 | Modal overlays |
-| Modals content | 400 | Modal dialogs |
-| Toasts/Notifications | 500 | Alert messages |
-| Critical overlays | 9999 | Emergency states only |
-
-**Our Standard Classes:**
 ```tsx
-// Dropdown menu
-<div className="z-[200]">...</div>
+import { COMPONENT_Z_INDEX } from '@/lib/z-index';
 
-// Modal
-<div className="fixed inset-0 z-[300] bg-black/50" /> {/* Backdrop */}
-<div className="fixed z-[400]">...</div> {/* Content */}
-
-// Toast
-<div className="fixed z-[500]">...</div>
+const modalZ = COMPONENT_Z_INDEX.modal; // 400
+const dropdownZ = COMPONENT_Z_INDEX.dropdownMenu; // 250
+const toastZ = COMPONENT_Z_INDEX.toast; // 500
 ```
-
-### 1.5 Performance Optimization Checklist
-
-- [ ] Images use `loading="lazy"` for below-fold content
-- [ ] SVGs used for icons (not PNGs)
-- [ ] Components use `React.memo()` where appropriate
-- [ ] Lists use virtualization for 50+ items
-- [ ] Event handlers are debounced/throttled where needed
-- [ ] CSS animations use `transform` and `opacity` only
-- [ ] No layout thrashing (reading then writing DOM in loops)
 
 ---
 
-## Axe 2: Development Methodology
+## Responsive Design Utilities
 
-### 2.1 Component Development Workflow
+### The useResponsive Hook
 
-Follow this sequence when building new components:
+Located at `/client/src/hooks/useResponsive.ts`, this hook provides all responsive design utilities:
 
-1. **Design Review** - Understand requirements for all viewport sizes
-2. **Mobile Implementation** - Build for 320px viewport first
-3. **Tablet Enhancement** - Add `md:` responsive classes
-4. **Desktop Enhancement** - Add `lg:` and `xl:` classes
-5. **Touch Testing** - Verify all interactions work with touch
-6. **Keyboard Testing** - Ensure keyboard navigation works
-7. **Screen Reader Check** - Basic accessibility verification
-
-### 2.2 Reusable Component Patterns
-
-**Modal Pattern:**
 ```tsx
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-}
+import { useResponsive } from '@/hooks/useResponsive';
 
-function Modal({ isOpen, onClose, children }: ModalProps) {
-  if (!isOpen) return null;
-  
+function MyComponent() {
+  const { 
+    isMobile, 
+    isTablet, 
+    isDesktop,
+    isAbove,
+    isBelow,
+    viewport,
+    isTouch,
+    isPortrait,
+    isLandscape,
+  } = useResponsive();
+
   return (
-    <div 
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        {children}
-      </div>
+    <div>
+      {isMobile && <MobileLayout />}
+      {isDesktop && <DesktopLayout />}
+      {isAbove('lg') && <Sidebar />}
+      <p>Viewport: {viewport.width}x{viewport.height}</p>
     </div>
   );
 }
 ```
 
-**Dropdown Pattern:**
+### Breakpoints
+
+The hook uses Tailwind CSS default breakpoints:
+
+| Breakpoint | Width | Description |
+|------------|-------|-------------|
+| `sm` | 640px | Small devices (landscape phones) |
+| `md` | 768px | Medium devices (tablets) |
+| `lg` | 1024px | Large devices (desktops) |
+| `xl` | 1280px | Extra large devices |
+| `2xl` | 1536px | 2X large devices |
+
+### Single Breakpoint Check
+
+For better performance when you only need one check:
+
 ```tsx
-// Always position dropdowns considering viewport edges
-const dropdownStyle = useMemo(() => {
-  const rect = triggerRef.current?.getBoundingClientRect();
-  if (!rect) return {};
+import { useBreakpoint } from '@/hooks/useResponsive';
+
+function MyComponent() {
+  const isLargeScreen = useBreakpoint('lg', 'above');
+  const isMobileOnly = useBreakpoint('md', 'below');
   
-  const spaceBelow = window.innerHeight - rect.bottom;
-  const spaceRight = window.innerWidth - rect.left;
-  
-  return {
-    top: spaceBelow < 200 ? 'auto' : rect.bottom,
-    bottom: spaceBelow < 200 ? window.innerHeight - rect.top : 'auto',
-    left: spaceRight < 200 ? 'auto' : rect.left,
-    right: spaceRight < 200 ? window.innerWidth - rect.right : 'auto',
-  };
-}, [isOpen]);
+  return isLargeScreen ? <DesktopView /> : <MobileView />;
+}
 ```
 
-### 2.3 State Management for Responsiveness
+### Touch Handlers
 
-Use viewport-aware hooks:
+For touch-friendly interactions:
 
 ```tsx
-function useViewport() {
-  const [viewport, setViewport] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    isMobile: window.innerWidth < 768,
-    isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
-    isDesktop: window.innerWidth >= 1024,
+import { useTouchHandlers } from '@/hooks/useResponsive';
+
+function MyButton() {
+  const { handlers, isPressed } = useTouchHandlers({
+    onPress: () => console.log('pressed'),
+    onRelease: () => console.log('released'),
+    onLongPress: () => console.log('long press'),
   });
 
-  useEffect(() => {
-    const handleResize = debounce(() => {
-      setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-        isMobile: window.innerWidth < 768,
-        isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
-        isDesktop: window.innerWidth >= 1024,
-      });
-    }, 100);
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return viewport;
-}
-```
-
-### 2.4 Event Handling for Touch and Mouse
-
-Always handle both touch and mouse events:
-
-```tsx
-// For drag operations
-const handlers = {
-  onMouseDown: handleDragStart,
-  onTouchStart: handleDragStart,
-  onMouseMove: handleDragMove,
-  onTouchMove: handleDragMove,
-  onMouseUp: handleDragEnd,
-  onTouchEnd: handleDragEnd,
-};
-
-// Prevent ghost clicks on touch devices
-function handleTouchStart(e: TouchEvent) {
-  e.preventDefault(); // Prevents mouse event from firing
-  // ... handle touch
+  return (
+    <button {...handlers} className={isPressed ? 'bg-blue-600' : 'bg-blue-500'}>
+      Press me
+    </button>
+  );
 }
 ```
 
 ---
 
-## Axe 3: Evaluation & Testing
+## Component Templates
 
-### 3.1 Performance Benchmarks
+### Modal Template
 
-| Metric | Target | Acceptable | Poor |
-|--------|--------|------------|------|
-| First Contentful Paint | < 1.0s | < 2.0s | > 2.0s |
-| Interaction Response | < 100ms | < 300ms | > 300ms |
-| Scroll FPS | 60fps | 30fps | < 30fps |
-| Modal Open Time | < 50ms | < 100ms | > 100ms |
-| Touch Feedback | Immediate | < 50ms | > 50ms |
-
-### 3.2 Pre-Deployment Checklist
-
-Run through this checklist before every checkpoint:
-
-**Layout & Visual:**
-- [ ] No horizontal scroll on any viewport (320px to 1920px)
-- [ ] Text remains readable at all sizes (min 14px on mobile)
-- [ ] Images scale correctly without distortion
-- [ ] No content overflow or clipping
-- [ ] Proper spacing maintained on all viewports
-
-**Interactions:**
-- [ ] All buttons/links have visible focus states
-- [ ] Touch targets meet 44×44px minimum
-- [ ] Dropdowns open in correct direction (not off-screen)
-- [ ] Modals are scrollable if content exceeds viewport
-- [ ] Drag operations work on touch devices
-
-**Functionality:**
-- [ ] Forms submit correctly on mobile keyboards
-- [ ] Keyboard navigation works (Tab, Enter, Escape)
-- [ ] No console errors on any viewport
-- [ ] Loading states display correctly
-- [ ] Error states are visible and actionable
-
-### 3.3 Testing Viewports
-
-Always test at these specific widths:
-
-| Width | Device Representation |
-|-------|----------------------|
-| 320px | iPhone SE, small Android |
-| 375px | iPhone 12/13/14 |
-| 414px | iPhone Plus models |
-| 768px | iPad portrait |
-| 1024px | iPad landscape, small laptop |
-| 1280px | Standard laptop |
-| 1920px | Desktop monitor |
-
-### 3.4 Common Issues & Solutions Reference
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Dropdown opens off-screen | Fixed positioning without viewport check | Use dynamic positioning based on available space |
-| Text overflow in flex container | Missing `min-w-0` on flex child | Add `min-w-0` and `truncate` or `break-words` |
-| Touch not working on element | Element covered by invisible sibling | Check z-index, use DevTools to inspect layers |
-| Modal behind other content | Z-index conflict | Follow z-index scale (modals at 400) |
-| Scroll not working in modal | Body scroll not locked | Add `overflow-hidden` to body when modal open |
-| Button too small to tap | Insufficient padding | Ensure min 44×44px touch target |
-| Layout shifts on load | Images without dimensions | Always specify width/height or aspect-ratio |
-| Janky animations | Animating layout properties | Only animate `transform` and `opacity` |
-
----
-
-## Project-Specific Patterns
-
-### Floating Chat Window
-
-The FloatingChatWindow component has specific responsiveness requirements:
+Located at `/client/src/components/templates/ModalTemplate.tsx`:
 
 ```tsx
-// Minimum dimensions
-const MIN_WIDTH = 320;
-const MIN_HEIGHT = 400;
+import { ModalTemplate } from '@/components/templates';
 
-// Default size based on viewport
-const getDefaultSize = () => ({
-  width: Math.min(400, window.innerWidth - 32),
-  height: Math.min(600, window.innerHeight - 100),
-});
-
-// Constrain position to viewport
-const constrainPosition = (x: number, y: number, width: number, height: number) => ({
-  x: Math.max(0, Math.min(x, window.innerWidth - width)),
-  y: Math.max(0, Math.min(y, window.innerHeight - height)),
-});
+function MyModal({ isOpen, onClose }) {
+  return (
+    <ModalTemplate
+      isOpen={isOpen}
+      onClose={onClose}
+      title="My Modal"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit}>Submit</Button>
+        </>
+      }
+    >
+      <p>Modal content goes here</p>
+    </ModalTemplate>
+  );
+}
 ```
 
-### Settings Menus & Dropdowns
+For nested modals (e.g., confirmation dialogs inside modals):
 
-All dropdown menus in chat windows must:
-1. Open toward the center of the screen (not toward edges)
-2. Use `z-[200]` for proper layering
-3. Close on outside click AND touch
-4. Have items with minimum 44px height
-
-### Modals
-
-All modals must:
-1. Be centered with `p-4` padding from viewport edges
-2. Have `max-h-[90vh]` to prevent overflow
-3. Include scrollable content area with `overflow-y-auto`
-4. Close on backdrop click
-5. Support Escape key to close
-
----
-
-## Quick Reference Card
-
-### Tailwind Classes for Responsiveness
-
-```
-/* Responsive display */
-hidden md:block          /* Hidden on mobile, visible on tablet+ */
-block md:hidden          /* Visible on mobile, hidden on tablet+ */
-
-/* Responsive flex direction */
-flex-col md:flex-row     /* Stack on mobile, row on tablet+ */
-
-/* Responsive spacing */
-p-2 md:p-4 lg:p-6        /* Progressive padding */
-gap-2 md:gap-4           /* Progressive gaps */
-
-/* Responsive text */
-text-sm md:text-base     /* Smaller text on mobile */
-
-/* Touch-friendly sizing */
-min-h-[44px] min-w-[44px] /* Minimum touch target */
-p-3                       /* 12px padding for good touch area */
-
-/* Prevent overflow */
-min-w-0 truncate         /* Text truncation in flex */
-overflow-hidden          /* Contain children */
+```tsx
+<ModalTemplate
+  isOpen={showConfirm}
+  onClose={() => setShowConfirm(false)}
+  title="Confirm Delete"
+  isNested={true}
+  maxWidth="sm"
+>
+  <p>Are you sure?</p>
+</ModalTemplate>
 ```
 
-### Z-Index Quick Reference
+### Dropdown Template
 
+Located at `/client/src/components/templates/DropdownTemplate.tsx`:
+
+```tsx
+import { DropdownTemplate } from '@/components/templates';
+
+function MyDropdown() {
+  return (
+    <DropdownTemplate
+      trigger={<Button>Options</Button>}
+      items={[
+        { id: 'edit', label: 'Edit', onClick: handleEdit },
+        { id: 'delete', label: 'Delete', onClick: handleDelete },
+      ]}
+      align="left"
+    />
+  );
+}
 ```
-z-[50]   → Tooltips, popovers
-z-[100]  → Sticky headers
-z-[200]  → Dropdowns, select menus
-z-[300]  → Modal backdrops
-z-[400]  → Modal content
-z-[500]  → Toasts, notifications
+
+For dropdowns inside modals:
+
+```tsx
+<DropdownTemplate
+  trigger={<Button>Select</Button>}
+  items={options}
+  inModal={true}
+/>
 ```
 
 ---
 
-## Changelog
+## ESLint Rules
 
-| Date | Change | Reason |
-|------|--------|--------|
-| Dec 2024 | Initial framework created | Consolidate responsiveness knowledge |
+The project includes ESLint rules to catch arbitrary z-index usage.
+
+### What Gets Flagged
+
+1. Arbitrary z-index values: `z-[999]`, `z-[50]`, etc.
+2. Numeric z-index classes: `z-50`, `z-100`, etc.
+3. Inline zIndex styles: `style={{ zIndex: 999 }}`
+
+### Running the Lint Check
+
+```bash
+# Standard lint check (warnings)
+pnpm lint
+
+# Strict z-index check (errors)
+pnpm lint:z-index
+```
+
+### Fixing Violations
+
+Replace arbitrary values with centralized constants:
+
+```tsx
+// ❌ Bad
+<div className="z-[999]">...</div>
+<div className="z-50">...</div>
+<div style={{ zIndex: 100 }}>...</div>
+
+// ✅ Good
+import { Z_CLASS, getZIndexStyle } from '@/lib/z-index';
+
+<div className={Z_CLASS.MODAL}>...</div>
+<div className={Z_CLASS.ABOVE}>...</div>
+<div style={getZIndexStyle('ELEVATED')}>...</div>
+```
 
 ---
 
-*This document should be updated whenever new patterns are discovered or issues are resolved.*
+## Best Practices
+
+### 1. Always Use the Centralized System
+
+Never use arbitrary z-index values. Always import from `@/lib/z-index`.
+
+### 2. Choose the Right Layer
+
+| Component Type | Layer to Use |
+|----------------|--------------|
+| Floating windows | `FLOATING` (200) |
+| Dropdowns/Selects | `DROPDOWN` (250) |
+| Tooltips/Popovers | `POPOVER` (300) |
+| Modals | `MODAL` (400) with `MODAL_BACKDROP` (350) |
+| Nested modals | `NESTED_MODAL` (450) |
+| Toasts | `TOAST` (500) |
+
+### 3. Test Layering
+
+When adding new components, test that they layer correctly by opening a floating window, then a dropdown inside it, then a modal, then a nested confirmation dialog, and verify toasts appear above everything.
+
+### 4. Document New Layers
+
+If you need a new z-index layer, add it to `z-index.ts` with documentation explaining its purpose.
+
+### 5. Use Templates for New Components
+
+When creating new modals or dropdowns, start with the templates in `/client/src/components/templates/`.
+
+---
+
+## Troubleshooting
+
+### Element Hidden Behind Another
+
+1. Check the z-index values of both elements
+2. Verify they're using the centralized system
+3. Ensure the correct layer is being used
+
+### Dropdown Not Visible in Modal
+
+Use `inModal={true}` prop or manually use `Z_CLASS.POPOVER` instead of `Z_CLASS.DROPDOWN`.
+
+### Toast Hidden Behind Modal
+
+Toasts should use `Z_CLASS.TOAST` (500), which is above modals (400).
+
+### ESLint Warning on Valid Code
+
+If you're using a z-index value correctly but getting a warning, ensure you're importing from the centralized system, not using arbitrary values.
+
+---
+
+## File Reference
+
+| File | Purpose |
+|------|---------|
+| `/client/src/lib/z-index.ts` | Centralized z-index constants and utilities |
+| `/client/src/hooks/useResponsive.ts` | Responsive design hook with z-index re-exports |
+| `/client/src/components/templates/ModalTemplate.tsx` | Modal component template |
+| `/client/src/components/templates/DropdownTemplate.tsx` | Dropdown component template |
+| `/eslint.config.js` | ESLint rules including z-index checks |
+
+---
+
+## Migration Guide
+
+If you're updating existing components to use the centralized system:
+
+1. Import the z-index utilities:
+   ```tsx
+   import { Z_CLASS, Z_INDEX } from '@/lib/z-index';
+   ```
+
+2. Replace arbitrary values:
+   ```tsx
+   // Before
+   className="z-[400]"
+   
+   // After
+   className={Z_CLASS.MODAL}
+   // or
+   className={`z-[${Z_INDEX.MODAL}]`}
+   ```
+
+3. Run the lint check to find remaining issues:
+   ```bash
+   pnpm lint:z-index
+   ```
+
+4. Test the component to ensure correct layering.
+
+---
+
+## Visual Layer Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ z-9999  CRITICAL    │ System-level overlays, loading screens │
+│ z-500   TOAST       │ Toast notifications, snackbars          │
+│ z-450   NESTED_MODAL│ Modals inside modals                    │
+│ z-400   MODAL       │ Modal dialogs, full-screen overlays     │
+│ z-350   MODAL_BACKDROP │ Dark backdrop behind modals          │
+│ z-300   POPOVER     │ Popovers, tooltips                      │
+│ z-250   DROPDOWN    │ Dropdown menus, select menus            │
+│ z-200   FLOATING    │ Floating windows, chat windows          │
+│ z-150   STICKY      │ Sticky headers, floating action buttons │
+│ z-100   ELEVATED    │ Cards with elevation, raised elements   │
+│ z-50    ABOVE       │ Elements slightly above normal flow     │
+│ z-0     BASE        │ Normal document flow                    │
+│ z-(-1)  BELOW       │ Background elements, decorations        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+*Last Updated: December 2024*

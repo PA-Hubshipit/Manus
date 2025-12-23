@@ -1,194 +1,298 @@
+/**
+ * useResponsive Hook - Complete Responsive Design Utilities
+ * ==========================================================
+ * 
+ * This hook provides all the utilities needed for responsive design:
+ * - Viewport detection (width, height, orientation)
+ * - Breakpoint utilities (isAbove, isBelow, isBetween)
+ * - Device type detection (mobile, tablet, desktop)
+ * - Touch device detection
+ * - Z-index constants (re-exported from z-index.ts)
+ * 
+ * USAGE:
+ * ```tsx
+ * const { isMobile, isAbove, viewport } = useResponsive();
+ * 
+ * if (isMobile) {
+ *   // Render mobile-specific UI
+ * }
+ * 
+ * if (isAbove('md')) {
+ *   // Render for screens >= 768px
+ * }
+ * ```
+ */
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
+// Re-export z-index utilities for convenience
+export { 
+  Z_INDEX, 
+  Z_CLASS, 
+  getZIndex, 
+  getZIndexClass, 
+  getZIndexStyle, 
+  COMPONENT_Z_INDEX,
+  isValidZIndex,
+  getLayerName,
+  type ZIndexLayer,
+  type ZIndexValue,
+} from '@/lib/z-index';
+
+// =============================================================================
+// BREAKPOINT DEFINITIONS
+// =============================================================================
+
 /**
- * Tailwind breakpoint values (in pixels)
- * These match the default Tailwind CSS breakpoints
+ * Tailwind CSS default breakpoints.
+ * These match Tailwind's default configuration.
  */
 export const BREAKPOINTS = {
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-  '2xl': 1536,
+  sm: 640,   // Small devices (landscape phones)
+  md: 768,   // Medium devices (tablets)
+  lg: 1024,  // Large devices (desktops)
+  xl: 1280,  // Extra large devices (large desktops)
+  '2xl': 1536, // 2X large devices (larger desktops)
 } as const;
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
 
-/**
- * Device type based on viewport width
- */
-export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+// =============================================================================
+// DEVICE TYPE DEFINITIONS
+// =============================================================================
 
-/**
- * Viewport information returned by useResponsive hook
- */
-export interface ViewportInfo {
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+export type Orientation = 'portrait' | 'landscape';
+
+// =============================================================================
+// VIEWPORT STATE INTERFACE
+// =============================================================================
+
+export interface ViewportState {
   /** Current viewport width in pixels */
   width: number;
   /** Current viewport height in pixels */
   height: number;
-  /** Whether the viewport is mobile-sized (< 768px) */
-  isMobile: boolean;
-  /** Whether the viewport is tablet-sized (768px - 1023px) */
-  isTablet: boolean;
-  /** Whether the viewport is desktop-sized (>= 1024px) */
-  isDesktop: boolean;
-  /** Current device type */
-  deviceType: DeviceType;
-  /** Whether touch is the primary input method */
-  isTouchDevice: boolean;
-  /** Current active breakpoint */
-  breakpoint: Breakpoint | 'xs';
-  /** Check if viewport is at or above a specific breakpoint */
-  isAbove: (bp: Breakpoint) => boolean;
-  /** Check if viewport is below a specific breakpoint */
-  isBelow: (bp: Breakpoint) => boolean;
-  /** Check if viewport is between two breakpoints (inclusive) */
-  isBetween: (minBp: Breakpoint, maxBp: Breakpoint) => boolean;
+  /** Current device orientation */
+  orientation: Orientation;
+  /** Whether the device supports touch */
+  isTouch: boolean;
 }
 
+// =============================================================================
+// HOOK RETURN TYPE
+// =============================================================================
+
+export interface UseResponsiveReturn {
+  // Viewport state
+  viewport: ViewportState;
+  
+  // Device type booleans
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+  deviceType: DeviceType;
+  
+  // Breakpoint utilities
+  isAbove: (breakpoint: Breakpoint) => boolean;
+  isBelow: (breakpoint: Breakpoint) => boolean;
+  isBetween: (min: Breakpoint, max: Breakpoint) => boolean;
+  currentBreakpoint: Breakpoint | null;
+  
+  // Touch detection
+  isTouch: boolean;
+  
+  // Orientation
+  isPortrait: boolean;
+  isLandscape: boolean;
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
 /**
- * Debounce utility for resize events
+ * Get the current viewport dimensions.
+ * Works in both browser and SSR environments.
  */
-function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
+function getViewportDimensions(): { width: number; height: number } {
+  if (typeof window === 'undefined') {
+    return { width: 0, height: 0 };
+  }
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
   };
 }
 
 /**
- * Detect if the device supports touch
+ * Detect if the device supports touch.
  */
-function detectTouchDevice(): boolean {
-  if (typeof window === 'undefined') return false;
+function detectTouch(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
   return (
     'ontouchstart' in window ||
     navigator.maxTouchPoints > 0 ||
-    // @ts-expect-error - msMaxTouchPoints is IE-specific
+    // @ts-ignore - msMaxTouchPoints is IE-specific
     navigator.msMaxTouchPoints > 0
   );
 }
 
 /**
- * Get the current breakpoint based on viewport width
+ * Get the current orientation based on viewport dimensions.
  */
-function getBreakpoint(width: number): Breakpoint | 'xs' {
+function getOrientation(width: number, height: number): Orientation {
+  return width >= height ? 'landscape' : 'portrait';
+}
+
+/**
+ * Determine device type based on viewport width.
+ */
+function getDeviceType(width: number): DeviceType {
+  if (width < BREAKPOINTS.md) {
+    return 'mobile';
+  }
+  if (width < BREAKPOINTS.lg) {
+    return 'tablet';
+  }
+  return 'desktop';
+}
+
+/**
+ * Get the current breakpoint based on viewport width.
+ */
+function getCurrentBreakpoint(width: number): Breakpoint | null {
   if (width >= BREAKPOINTS['2xl']) return '2xl';
   if (width >= BREAKPOINTS.xl) return 'xl';
   if (width >= BREAKPOINTS.lg) return 'lg';
   if (width >= BREAKPOINTS.md) return 'md';
   if (width >= BREAKPOINTS.sm) return 'sm';
-  return 'xs';
+  return null; // Below smallest breakpoint
 }
 
-/**
- * Get device type based on viewport width
- */
-function getDeviceType(width: number): DeviceType {
-  if (width < BREAKPOINTS.md) return 'mobile';
-  if (width < BREAKPOINTS.lg) return 'tablet';
-  return 'desktop';
-}
+// =============================================================================
+// MAIN HOOK
+// =============================================================================
 
 /**
- * Hook for responsive viewport information
- * 
- * @param debounceMs - Debounce delay for resize events (default: 100ms)
- * @returns ViewportInfo object with current viewport state and utilities
+ * useResponsive - Complete responsive design utilities hook.
  * 
  * @example
  * ```tsx
  * function MyComponent() {
- *   const { isMobile, isAbove, deviceType } = useResponsive();
+ *   const { isMobile, isAbove, viewport } = useResponsive();
  *   
  *   return (
- *     <div className={isMobile ? 'flex-col' : 'flex-row'}>
+ *     <div>
+ *       {isMobile ? <MobileNav /> : <DesktopNav />}
  *       {isAbove('lg') && <Sidebar />}
- *       <Content />
+ *       <p>Viewport: {viewport.width}x{viewport.height}</p>
  *     </div>
  *   );
  * }
  * ```
  */
-export function useResponsive(debounceMs: number = 100): ViewportInfo {
-  const [dimensions, setDimensions] = useState(() => ({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
-    height: typeof window !== 'undefined' ? window.innerHeight : 768,
-  }));
-
-  const [isTouchDevice] = useState(() => detectTouchDevice());
-
-  useEffect(() => {
-    const handleResize = debounce(() => {
-      setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }, debounceMs);
-
-    window.addEventListener('resize', handleResize);
-    
-    // Also listen for orientation changes on mobile
-    window.addEventListener('orientationchange', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, [debounceMs]);
-
-  const isAbove = useCallback(
-    (bp: Breakpoint) => dimensions.width >= BREAKPOINTS[bp],
-    [dimensions.width]
-  );
-
-  const isBelow = useCallback(
-    (bp: Breakpoint) => dimensions.width < BREAKPOINTS[bp],
-    [dimensions.width]
-  );
-
-  const isBetween = useCallback(
-    (minBp: Breakpoint, maxBp: Breakpoint) =>
-      dimensions.width >= BREAKPOINTS[minBp] && dimensions.width < BREAKPOINTS[maxBp],
-    [dimensions.width]
-  );
-
-  const viewportInfo = useMemo<ViewportInfo>(() => {
-    const { width, height } = dimensions;
-    const isMobile = width < BREAKPOINTS.md;
-    const isTablet = width >= BREAKPOINTS.md && width < BREAKPOINTS.lg;
-    const isDesktop = width >= BREAKPOINTS.lg;
-
+export function useResponsive(): UseResponsiveReturn {
+  // Initialize state with current viewport
+  const [viewport, setViewport] = useState<ViewportState>(() => {
+    const { width, height } = getViewportDimensions();
     return {
       width,
       height,
-      isMobile,
-      isTablet,
-      isDesktop,
-      deviceType: getDeviceType(width),
-      isTouchDevice,
-      breakpoint: getBreakpoint(width),
-      isAbove,
-      isBelow,
-      isBetween,
+      orientation: getOrientation(width, height),
+      isTouch: detectTouch(),
     };
-  }, [dimensions, isTouchDevice, isAbove, isBelow, isBetween]);
+  });
 
-  return viewportInfo;
+  // Update viewport on resize
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    
+    const handleResize = () => {
+      // Debounce resize events for performance
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const { width, height } = getViewportDimensions();
+        setViewport({
+          width,
+          height,
+          orientation: getOrientation(width, height),
+          isTouch: detectTouch(),
+        });
+      }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    // Also listen for orientation change on mobile
+    window.addEventListener('orientationchange', handleResize);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  // Memoized breakpoint utilities
+  const isAbove = useCallback(
+    (breakpoint: Breakpoint): boolean => {
+      return viewport.width >= BREAKPOINTS[breakpoint];
+    },
+    [viewport.width]
+  );
+
+  const isBelow = useCallback(
+    (breakpoint: Breakpoint): boolean => {
+      return viewport.width < BREAKPOINTS[breakpoint];
+    },
+    [viewport.width]
+  );
+
+  const isBetween = useCallback(
+    (min: Breakpoint, max: Breakpoint): boolean => {
+      return viewport.width >= BREAKPOINTS[min] && viewport.width < BREAKPOINTS[max];
+    },
+    [viewport.width]
+  );
+
+  // Memoized computed values
+  const computed = useMemo(() => {
+    const deviceType = getDeviceType(viewport.width);
+    const currentBreakpoint = getCurrentBreakpoint(viewport.width);
+    
+    return {
+      deviceType,
+      currentBreakpoint,
+      isMobile: deviceType === 'mobile',
+      isTablet: deviceType === 'tablet',
+      isDesktop: deviceType === 'desktop',
+      isPortrait: viewport.orientation === 'portrait',
+      isLandscape: viewport.orientation === 'landscape',
+    };
+  }, [viewport.width, viewport.orientation]);
+
+  return {
+    viewport,
+    ...computed,
+    isAbove,
+    isBelow,
+    isBetween,
+    isTouch: viewport.isTouch,
+  };
 }
 
+// =============================================================================
+// SINGLE BREAKPOINT HOOK
+// =============================================================================
+
 /**
- * Hook for checking a single breakpoint
- * More performant than useResponsive when you only need one check
- * 
- * @param breakpoint - The breakpoint to check against
- * @param direction - 'above' (>=) or 'below' (<)
- * @returns boolean indicating if condition is met
+ * Hook for checking a single breakpoint.
+ * More performant than useResponsive when you only need one check.
  * 
  * @example
  * ```tsx
@@ -219,10 +323,7 @@ export function useBreakpoint(
       setMatches(e.matches);
     };
 
-    // Set initial value
     setMatches(mediaQuery.matches);
-
-    // Modern browsers
     mediaQuery.addEventListener('change', handleChange);
 
     return () => {
@@ -233,9 +334,13 @@ export function useBreakpoint(
   return matches;
 }
 
+// =============================================================================
+// TOUCH HANDLERS HOOK
+// =============================================================================
+
 /**
- * Hook for touch-friendly event handling
- * Returns handlers that work for both mouse and touch
+ * Hook for touch-friendly event handling.
+ * Returns handlers that work for both mouse and touch.
  * 
  * @example
  * ```tsx
@@ -293,36 +398,136 @@ export function useTouchHandlers(options: {
   return { handlers, isPressed };
 }
 
-/**
- * Z-Index scale constants for consistent layering
- * Use these instead of arbitrary z-index values
- */
-export const Z_INDEX = {
-  /** Base content layer */
-  base: 0,
-  /** Floating elements like tooltips */
-  tooltip: 50,
-  /** Sticky headers and navigation */
-  sticky: 100,
-  /** Dropdown menus and select popups */
-  dropdown: 200,
-  /** Modal backdrop overlay */
-  modalBackdrop: 300,
-  /** Modal content */
-  modal: 400,
-  /** Toast notifications */
-  toast: 500,
-  /** Critical overlays (use sparingly) */
-  critical: 9999,
-} as const;
-
-export type ZIndexLayer = keyof typeof Z_INDEX;
+// =============================================================================
+// STANDALONE UTILITIES (for use outside React components)
+// =============================================================================
 
 /**
- * Get z-index value for a specific layer
+ * Check if the current viewport is above a breakpoint.
+ * For use outside React components.
  */
-export function getZIndex(layer: ZIndexLayer): number {
-  return Z_INDEX[layer];
+export function checkIsAbove(breakpoint: Breakpoint): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth >= BREAKPOINTS[breakpoint];
 }
 
+/**
+ * Check if the current viewport is below a breakpoint.
+ * For use outside React components.
+ */
+export function checkIsBelow(breakpoint: Breakpoint): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.innerWidth < BREAKPOINTS[breakpoint];
+}
+
+/**
+ * Get the current device type.
+ * For use outside React components.
+ */
+export function checkDeviceType(): DeviceType {
+  if (typeof window === 'undefined') return 'desktop';
+  return getDeviceType(window.innerWidth);
+}
+
+/**
+ * Check if the device is a touch device.
+ * For use outside React components.
+ */
+export function checkIsTouch(): boolean {
+  return detectTouch();
+}
+
+// =============================================================================
+// SWIPE GESTURE UTILITIES
+// =============================================================================
+
+export interface TouchHandlers {
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: (e: React.TouchEvent) => void;
+}
+
+export interface SwipeConfig {
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+  onSwipeUp?: () => void;
+  onSwipeDown?: () => void;
+  threshold?: number; // Minimum distance to trigger swipe (default: 50px)
+}
+
+/**
+ * Create touch handlers for swipe gestures.
+ * 
+ * @example
+ * ```tsx
+ * const touchHandlers = createSwipeHandlers({
+ *   onSwipeLeft: () => closeDrawer(),
+ *   onSwipeRight: () => openDrawer(),
+ * });
+ * 
+ * return <div {...touchHandlers}>Swipeable content</div>;
+ * ```
+ */
+export function createSwipeHandlers(config: SwipeConfig): TouchHandlers {
+  const threshold = config.threshold ?? 50;
+  let startX = 0;
+  let startY = 0;
+
+  return {
+    onTouchStart: (e: React.TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    },
+    onTouchMove: () => {
+      // Optional: Add visual feedback during swipe
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      
+      const deltaX = endX - startX;
+      const deltaY = endY - startY;
+      
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      
+      // Determine if horizontal or vertical swipe
+      if (absX > absY && absX > threshold) {
+        if (deltaX > 0) {
+          config.onSwipeRight?.();
+        } else {
+          config.onSwipeLeft?.();
+        }
+      } else if (absY > absX && absY > threshold) {
+        if (deltaY > 0) {
+          config.onSwipeDown?.();
+        } else {
+          config.onSwipeUp?.();
+        }
+      }
+    },
+  };
+}
+
+// =============================================================================
+// CSS MEDIA QUERY HELPERS
+// =============================================================================
+
+/**
+ * Generate a CSS media query string for a breakpoint.
+ * Useful for CSS-in-JS solutions.
+ */
+export function mediaQuery(breakpoint: Breakpoint, type: 'min' | 'max' = 'min'): string {
+  const value = type === 'min' ? BREAKPOINTS[breakpoint] : BREAKPOINTS[breakpoint] - 1;
+  return `@media (${type}-width: ${value}px)`;
+}
+
+/**
+ * Generate a CSS media query string for a range between breakpoints.
+ */
+export function mediaQueryBetween(min: Breakpoint, max: Breakpoint): string {
+  return `@media (min-width: ${BREAKPOINTS[min]}px) and (max-width: ${BREAKPOINTS[max] - 1}px)`;
+}
+
+// Default export for convenience
 export default useResponsive;

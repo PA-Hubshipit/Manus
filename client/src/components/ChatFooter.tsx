@@ -3,6 +3,7 @@ import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, Ba
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ConnectorsStore } from './ConnectorsStore';
+import { Z_CLASS, Z_INDEX } from '@/lib/z-index';
 
 interface Attachment {
   name: string;
@@ -175,10 +176,10 @@ export function ChatFooter({
             {showFooterMenu && (
               <>
                 <div 
-                  className="fixed inset-0 z-[199]"
+                  className={`fixed inset-0 z-[${Z_INDEX.FLOATING - 1}]`}
                   onClick={() => setShowFooterMenu(false)}
                 />
-                <div className="absolute bottom-full left-0 mb-2 w-72 bg-card rounded-lg shadow-2xl z-[200] border border-border overflow-hidden">
+                <div className={`absolute bottom-full left-0 mb-2 w-72 bg-card rounded-lg shadow-2xl ${Z_CLASS.FLOATING} border border-border overflow-hidden`}>
                   <button
                     onClick={() => {
                       onNewChat?.();
@@ -339,10 +340,10 @@ export function ChatFooter({
             {showSettings && (
               <>
                 <div 
-                  className="fixed inset-0 z-[199]"
+                  className={`fixed inset-0 z-[${Z_INDEX.FLOATING - 1}]`}
                   onClick={() => setShowSettings(false)}
                 />
-                <div className="absolute bottom-full right-0 mb-2 w-56 bg-card rounded-lg shadow-2xl z-[200] border border-border overflow-hidden">
+                <div className={`absolute bottom-full right-0 mb-2 w-56 bg-card rounded-lg shadow-2xl ${Z_CLASS.FLOATING} border border-border overflow-hidden`}>
                   <div className="px-4 py-3 border-b border-border">
                     <h3 className="text-sm font-semibold">Settings</h3>
                   </div>

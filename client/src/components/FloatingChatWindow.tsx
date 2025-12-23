@@ -40,6 +40,7 @@ import {
   filterByCategory, getAllCategories, duplicatePreset, PresetUsageStats 
 } from '@/lib/quick-presets';
 import { toast } from 'sonner';
+import { Z_CLASS } from '@/lib/z-index';
 
 // ============================================
 // TYPES & INTERFACES
@@ -906,7 +907,7 @@ export function FloatingChatWindow({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className={`fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-[200] ${isDragging ? 'cursor-grabbing' : ''} ${isResizing ? 'select-none' : ''}`}
+        className={`fixed bg-background border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col ${Z_CLASS.FLOATING} ${isDragging ? 'cursor-grabbing' : ''} ${isResizing ? 'select-none' : ''}`}
         style={windowStyle}
       >
         {/* Header */}
