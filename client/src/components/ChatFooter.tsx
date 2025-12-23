@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download, X, Image as ImageIcon, Zap, Mic, Plug } from 'lucide-react';
+import { Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, Edit, Trash2, BarChart, MessageSquare, Archive, Download, X, Image as ImageIcon, Zap, Mic, Plug, FolderOpen, Palette, Globe } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ConnectorsStore } from './ConnectorsStore';
@@ -38,6 +38,7 @@ interface ChatFooterProps {
   onShowAnalytics?: () => void;
   onExportData?: () => void;
   onPresetsSettings?: () => void;
+  onCategoriesSettings?: () => void;
   messagesCount?: number;
   attachments?: Attachment[];
   onRemoveAttachment?: (index: number) => void;
@@ -66,6 +67,7 @@ export function ChatFooter({
   onShowAnalytics,
   onExportData,
   onPresetsSettings,
+  onCategoriesSettings,
   messagesCount = 0,
   attachments = [],
   onRemoveAttachment,
@@ -356,11 +358,22 @@ export function ChatFooter({
                   </button>
                   <button
                     onClick={() => {
+                      onCategoriesSettings?.();
+                      setShowSettings(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    <span className="text-sm">Categories Setting</span>
+                  </button>
+                  <button
+                    onClick={() => {
                       toast.info('Theme settings coming soon');
                       setShowSettings(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                   >
+                    <Palette className="h-4 w-4" />
                     <span className="text-sm">Theme</span>
                   </button>
                   <button
@@ -370,6 +383,7 @@ export function ChatFooter({
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                   >
+                    <Globe className="h-4 w-4" />
                     <span className="text-sm">Language</span>
                   </button>
                   <button

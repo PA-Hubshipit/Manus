@@ -12,7 +12,8 @@ export interface QuickPreset {
   usageCount?: number; // Number of times preset has been used
   lastUsedAt?: string; // ISO timestamp of last usage
   createdAt?: string; // ISO timestamp when preset was added
-  category?: string; // Custom category/tag for organizing presets
+  category?: string; // Legacy: Custom category/tag for organizing presets (deprecated)
+  categoryId?: string; // References Category.id from useCategories hook
 }
 
 /**

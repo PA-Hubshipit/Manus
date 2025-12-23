@@ -27,6 +27,7 @@ import { PresetRecommendations } from './PresetRecommendations';
 import { PresetSortDropdown } from './PresetSortDropdown';
 import { PresetStatsDashboard } from './PresetStatsDashboard';
 import { CustomCategoryModal } from './CustomCategoryModal';
+import CategoriesSettingsModal from './CategoriesSettingsModal';
 import { BulkOperationsBar } from './BulkOperationsBar';
 import { useKeyboardShortcuts, SHORTCUT_KEYS } from '@/hooks/useKeyboardShortcuts';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
@@ -203,6 +204,7 @@ export function FloatingChatWindow({
   const [showStatsDashboard, setShowStatsDashboard] = useState(false);
   const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showCategoriesSettings, setShowCategoriesSettings] = useState(false);
   
   // ============================================
   // STATE - Presets
@@ -1356,6 +1358,7 @@ export function FloatingChatWindow({
           onShowAnalytics={() => setShowAnalytics(true)}
           onExportData={exportConversation}
           onPresetsSettings={() => setShowPresetsManagement(true)}
+          onCategoriesSettings={() => setShowCategoriesSettings(true)}
           messagesCount={messages.length}
           attachments={attachments}
           onRemoveAttachment={removeAttachment}
@@ -1384,7 +1387,7 @@ export function FloatingChatWindow({
       </motion.div>
 
       {/* Modals */}
-      {showSettings && <SettingsMenu onClose={() => setShowSettings(false)} onPresetsManagement={() => setShowPresetsManagement(true)} />}
+      {showSettings && <SettingsMenu onClose={() => setShowSettings(false)} onPresetsManagement={() => setShowPresetsManagement(true)} onCategoriesSettings={() => setShowCategoriesSettings(true)} />}
       
       {showAnalytics && (
         <AnalyticsPanel 
@@ -1505,6 +1508,13 @@ export function FloatingChatWindow({
           currentTitle={conversationTitle}
           onRename={handleRename}
           onClose={() => setShowRenameDialog(false)}
+        />
+      )}
+      
+      {showCategoriesSettings && (
+        <CategoriesSettingsModal
+          isOpen={showCategoriesSettings}
+          onClose={() => setShowCategoriesSettings(false)}
         />
       )}
     </>

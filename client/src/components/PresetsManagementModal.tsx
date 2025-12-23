@@ -3,7 +3,9 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { X, Plus, Edit, Trash2, Copy, Save, Download, Upload, Search, GripVertical, Tag, ChevronDown } from 'lucide-react';
+import { X, Plus, Edit, Trash2, Copy, Save, Download, Upload, Search, GripVertical, Tag, ChevronDown, FolderOpen } from 'lucide-react';
+import useCategories from '@/hooks/useCategories';
+import { BUILT_IN_CATEGORY_IDS } from '@/types/category';
 import { toast } from 'sonner';
 
 export interface CustomPreset {
@@ -13,6 +15,7 @@ export interface CustomPreset {
   models: string[];
   type: 'custom';
   tags?: string[];
+  categoryId?: string; // References Category.id from useCategories
 }
 
 interface BuiltInPreset {
@@ -57,6 +60,11 @@ export function PresetsManagementModal({
   const [presetTags, setPresetTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  const [presetCategoryId, setPresetCategoryId] = useState<string>(BUILT_IN_CATEGORY_IDS.UNCATEGORIZED);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  
+  // Get categories from centralized hook
+  const { categories } = useCategories();
 
   // Sync local state when props change
   useEffect(() => {
@@ -74,6 +82,7 @@ export function PresetsManagementModal({
     setPresetDescription('');
     setPresetModels([]);
     setPresetTags([]);
+    setPresetCategoryId(BUILT_IN_CATEGORY_IDS.UNCATEGORIZED);
   };
 
   const handleEditPreset = (preset: CustomPreset) => {
@@ -83,6 +92,7 @@ export function PresetsManagementModal({
     setPresetDescription(preset.description);
     setPresetModels([...preset.models]); // Create a new array copy
     setPresetTags(preset.tags || []);
+    setPresetCategoryId(preset.categoryId || BUILT_IN_CATEGORY_IDS.UNCATEGORIZED);
     
     // Scroll to top to show the edit form
     setTimeout(() => {
@@ -109,7 +119,7 @@ export function PresetsManagementModal({
       // Update existing preset
       const updated = localCustomPresets.map(p =>
         p.id === editingPreset.id
-          ? { ...p, name: presetName, description: presetDescription, models: [...presetModels], tags: presetTags }
+          ? { ...p, name: presetName, description: presetDescription, models: [...presetModels], tags: presetTags, categoryId: presetCategoryId }
           : p
       );
       console.log('Updated presets:', updated);
@@ -124,6 +134,7 @@ export function PresetsManagementModal({
         models: presetModels,
         type: 'custom',
         tags: presetTags,
+        categoryId: presetCategoryId,
       };
       setLocalCustomPresets([...localCustomPresets, newPreset]);
       toast.success('Preset created');
@@ -135,6 +146,7 @@ export function PresetsManagementModal({
     setPresetName('');
     setPresetDescription('');
     setPresetModels([]);
+    setPresetCategoryId(BUILT_IN_CATEGORY_IDS.UNCATEGORIZED);
   };
 
   const handleDeletePreset = (id: string) => {
@@ -340,6 +352,73 @@ export function PresetsManagementModal({
                       onChange={(e) => setPresetDescription(e.target.value)}
                       placeholder="Brief description of this preset"
                     />
+                  </div>
+
+                  {/* Category Dropdown */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4" />
+                      Category
+                    </label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCategoryDropdown(!showCategoryDropdown);
+                          setShowProviderDropdown(false);
+                          setShowModelDropdown(false);
+                        }}
+                        className="w-full flex items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        {(() => {
+                          const selectedCategory = categories.find(c => c.id === presetCategoryId);
+                          return selectedCategory ? (
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: selectedCategory.color }}
+                              />
+                              <span>{selectedCategory.icon}</span>
+                              <span>{selectedCategory.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Select a category</span>
+                          );
+                        })()}
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </button>
+                      
+                      {showCategoryDropdown && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-[450]" 
+                            onClick={() => setShowCategoryDropdown(false)}
+                          />
+                          <div className="absolute top-full left-0 right-0 mt-1 z-[500] bg-popover text-popover-foreground border border-border rounded-md shadow-lg max-h-[300px] overflow-y-auto">
+                            {categories.map((category) => (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => {
+                                  setPresetCategoryId(category.id);
+                                  setShowCategoryDropdown(false);
+                                }}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors text-left ${
+                                  presetCategoryId === category.id ? 'bg-accent' : ''
+                                }`}
+                              >
+                                <div
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: category.color }}
+                                />
+                                <span className="flex-shrink-0">{category.icon}</span>
+                                <span className="truncate">{category.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div>
