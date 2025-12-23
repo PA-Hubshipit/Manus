@@ -191,65 +191,7 @@ export default function CategoriesSettingsModal({
             </button>
           )}
 
-          {/* Category List */}
-          <div className="space-y-2">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-border/50"
-              >
-                {/* Color indicator */}
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: category.color }}
-                />
-                
-                {/* Icon */}
-                <span className="text-lg flex-shrink-0">{category.icon || '📁'}</span>
-                
-                {/* Name and description */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground truncate">
-                      {category.name}
-                    </span>
-                    {category.isBuiltIn && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        Built-in
-                      </span>
-                    )}
-                  </div>
-                  {category.description && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {category.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                {!category.isBuiltIn && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => handleStartEdit(category)}
-                      className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                      title="Edit category"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleStartDelete(category)}
-                      className="p-1.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Delete category"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Edit/Create Form */}
+          {/* Edit/Create Form - appears at top when editing */}
           {editingCategory && (
             <div className="p-4 rounded-lg border border-primary/50 bg-accent/20 space-y-4">
               <h3 className="font-medium text-foreground">
@@ -385,6 +327,64 @@ export default function CategoriesSettingsModal({
               </div>
             </div>
           )}
+
+          {/* Category List */}
+          <div className="space-y-2">
+            {categories.map((category) => (
+              <div
+                key={category.id}
+                className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-border/50"
+              >
+                {/* Color indicator */}
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: category.color }}
+                />
+                
+                {/* Icon */}
+                <span className="text-lg flex-shrink-0">{category.icon || '📁'}</span>
+                
+                {/* Name and description */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground truncate">
+                      {category.name}
+                    </span>
+                    {category.isBuiltIn && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        Built-in
+                      </span>
+                    )}
+                  </div>
+                  {category.description && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {category.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                {!category.isBuiltIn && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => handleStartEdit(category)}
+                      className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                      title="Edit category"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleStartDelete(category)}
+                      className="p-1.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Delete category"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Footer */}

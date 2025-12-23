@@ -228,3 +228,5 @@
 
 ## Categories UI Fix
 - [x] Move "Add New Category" button from bottom to top of Categories Settings modal
+
+- [x] Move Create New Category form to appear above the category list (not below)
