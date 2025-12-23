@@ -225,3 +225,6 @@
 - [x] Update Preset types to include categoryId field
 - [x] Implement delete category dialog with reassignment options
 - [x] Test complete Categories flow
+
+## Categories UI Fix
+- [x] Move "Add New Category" button from bottom to top of Categories Settings modal

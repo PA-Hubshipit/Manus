@@ -180,9 +180,16 @@ export default function CategoriesSettingsModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Manage your preset categories. Built-in categories cannot be edited or deleted.
-          </p>
+          {/* Add New Category Button - at top */}
+          {!editingCategory && (
+            <button
+              onClick={handleStartCreate}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-accent/30 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Category</span>
+            </button>
+          )}
 
           {/* Category List */}
           <div className="space-y-2">
@@ -241,17 +248,6 @@ export default function CategoriesSettingsModal({
               </div>
             ))}
           </div>
-
-          {/* Add New Category Button */}
-          {!editingCategory && (
-            <button
-              onClick={handleStartCreate}
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-accent/30 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Category</span>
-            </button>
-          )}
 
           {/* Edit/Create Form */}
           {editingCategory && (
