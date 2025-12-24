@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { Globe, Database, FileText, Mail, Calendar, Github, ChevronRight, Plus, Settings2, Chrome, X, Key, Sparkles, Search, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';

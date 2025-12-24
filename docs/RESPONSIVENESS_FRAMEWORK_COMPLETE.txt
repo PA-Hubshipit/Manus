@@ -1,0 +1,1464 @@
+================================================================================
+                 RESPONSIVENESS FRAMEWORK - COMPLETE DOCUMENTATION
+                         Multi-AI Chat Application
+================================================================================
+
+Author: Manus AI
+Version: 1.0
+Last Updated: December 24, 2025
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+PART I: OVERVIEW
+  1. Introduction
+  2. The Three Axes of Responsiveness
+  3. Framework Architecture
+
+PART II: AXE 1 - PERFORMANCE
+  4. Mobile-First Design Principles
+  5. Fluid Grids and Layouts
+  6. Breakpoints and Media Queries
+  7. Responsive Images and Assets
+  8. Performance Optimization Techniques
+  9. User Experience (UX) Best Practices
+
+PART III: AXE 2 - METHODOLOGY
+  10. Strategy and Planning
+  11. Component-Based Architecture
+  12. Centralized Systems (Z-Index, Theming)
+  13. Development Workflow
+  14. Code Organization
+
+PART IV: AXE 3 - EVALUATION
+  15. User Expectations and Benchmarks
+  16. Manual Visual and Functional Testing
+  17. Automated Testing Strategy
+  18. Performance Metrics
+  19. Continuous Integration
+
+PART V: IMPLEMENTATION
+  20. Implementation Files Reference
+  21. useResponsive Hook Documentation
+  22. Component Templates
+  23. ESLint Rules and Enforcement
+  24. Troubleshooting Guide
+  25. Quick Reference Card
+
+================================================================================
+                         PART I: OVERVIEW
+================================================================================
+
+================================================================================
+                           1. INTRODUCTION
+================================================================================
+
+This document describes the complete Responsiveness Framework implemented in
+the Multi-AI Chat application. The framework ensures the application works
+seamlessly across all devices, screen sizes, and interaction modes.
+
+The framework is built on THREE AXES:
+
+    AXE 1: PERFORMANCE    - How to build responsive components
+    AXE 2: METHODOLOGY    - How to organize and develop efficiently
+    AXE 3: EVALUATION     - How to test and measure responsiveness
+
+Together, these axes create a comprehensive system that guarantees a
+consistent, fast, and user-friendly experience on any device.
+
+================================================================================
+                   2. THE THREE AXES OF RESPONSIVENESS
+================================================================================
+
++-----------------------------------------------------------------------------+
+|                        RESPONSIVENESS FRAMEWORK                              |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|    AXE 1: PERFORMANCE                                                       |
+|    ==================                                                       |
+|    - Mobile-first design                                                    |
+|    - Fluid grids (Flexbox/CSS Grid)                                        |
+|    - Media queries and breakpoints                                          |
+|    - Responsive images (srcset)                                             |
+|    - Performance optimization                                               |
+|    - Touch-friendly design                                                  |
+|                                                                             |
+|    AXE 2: METHODOLOGY                                                       |
+|    ==================                                                       |
+|    - MVP focus and clear goals                                              |
+|    - Component-based UI architecture                                        |
+|    - Centralized systems (z-index, theming)                                |
+|    - Agile/Lean development                                                 |
+|    - Reusable components and templates                                      |
+|    - Automated workflows                                                    |
+|                                                                             |
+|    AXE 3: EVALUATION                                                        |
+|    =================                                                        |
+|    - User expectations and benchmarks                                       |
+|    - Manual testing on real devices                                         |
+|    - Automated functional testing                                           |
+|    - Performance metrics (FPS, load time)                                   |
+|    - Continuous integration testing                                         |
+|    - Beta feedback loops                                                    |
+|                                                                             |
++-----------------------------------------------------------------------------+
+
+================================================================================
+                      3. FRAMEWORK ARCHITECTURE
+================================================================================
+
+The framework is implemented through these key components:
+
+CORE FILES:
+-----------
+    /client/src/lib/z-index.ts          - Centralized z-index management
+    /client/src/hooks/useResponsive.ts  - Responsive design utilities
+    /client/src/contexts/ZIndexContext.tsx - Dynamic z-index manager
+
+TEMPLATES:
+----------
+    /client/src/components/templates/ModalTemplate.tsx
+    /client/src/components/templates/DropdownTemplate.tsx
+
+DOCUMENTATION:
+--------------
+    /docs/RESPONSIVENESS_FRAMEWORK.md
+    /docs/Z_INDEX_FRAMEWORK_COMPLETE.txt
+    /docs/RESPONSIVENESS_FRAMEWORK_COMPLETE.txt (this file)
+
+TESTING:
+--------
+    /client/src/lib/z-index.test.ts
+    /client/src/hooks/useResponsive.test.ts
+    /e2e/z-index-layering.spec.ts
+
+ENFORCEMENT:
+------------
+    /eslint.config.js
+    /.husky/pre-commit
+
+================================================================================
+                      PART II: AXE 1 - PERFORMANCE
+================================================================================
+
+================================================================================
+                    4. MOBILE-FIRST DESIGN PRINCIPLES
+================================================================================
+
+Mobile-first design means starting with the smallest screen and progressively
+enhancing for larger ones. This ensures core functionality works on all devices.
+
+PRINCIPLE 1: Start Small
+------------------------
+Design for mobile screens first (320px - 480px width), then add complexity
+for tablets and desktops.
+
+    /* Mobile first - base styles */
+    .container {
+      padding: 1rem;
+      flex-direction: column;
+    }
+
+    /* Tablet and up */
+    @media (min-width: 768px) {
+      .container {
+        padding: 2rem;
+        flex-direction: row;
+      }
+    }
+
+PRINCIPLE 2: Progressive Enhancement
+------------------------------------
+Add features as screen size increases, rather than removing features for
+smaller screens.
+
+    /* Base: Single column */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    /* Medium: Two columns */
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* Large: Three columns */
+    @media (min-width: 1024px) {
+      .grid {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+    }
+
+PRINCIPLE 3: Content Priority
+-----------------------------
+Show essential content first on mobile, reveal secondary content on larger
+screens.
+
+    /* Mobile: Hide sidebar */
+    .sidebar {
+      display: none;
+    }
+
+    /* Desktop: Show sidebar */
+    @media (min-width: 1024px) {
+      .sidebar {
+        display: block;
+      }
+    }
+
+IMPLEMENTATION IN THIS PROJECT:
+-------------------------------
+The useResponsive hook provides easy access to device detection:
+
+    import { useResponsive } from '@/hooks/useResponsive';
+
+    function MyComponent() {
+      const { isMobile, isTablet, isDesktop } = useResponsive();
+
+      return (
+        <div>
+          {isMobile && <MobileLayout />}
+          {isTablet && <TabletLayout />}
+          {isDesktop && <DesktopLayout />}
+        </div>
+      );
+    }
+
+================================================================================
+                      5. FLUID GRIDS AND LAYOUTS
+================================================================================
+
+Fluid grids use relative units (percentages, fr units) instead of fixed pixels,
+allowing layouts to stretch and shrink naturally.
+
+FLEXBOX FOR ONE-DIMENSIONAL LAYOUTS:
+------------------------------------
+
+    /* Flexible row that wraps on small screens */
+    .flex-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .flex-item {
+      flex: 1 1 300px;  /* Grow, shrink, min-width 300px */
+    }
+
+CSS GRID FOR TWO-DIMENSIONAL LAYOUTS:
+-------------------------------------
+
+    /* Responsive grid that auto-fits columns */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+TAILWIND CSS UTILITIES:
+-----------------------
+This project uses Tailwind CSS for responsive layouts:
+
+    <!-- Responsive flex layout -->
+    <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex-1">Column 1</div>
+      <div className="flex-1">Column 2</div>
+    </div>
+
+    <!-- Responsive grid -->
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div>Item 1</div>
+      <div>Item 2</div>
+      <div>Item 3</div>
+    </div>
+
+FLOATING CHAT WINDOW EXAMPLE:
+-----------------------------
+The FloatingChatWindow component uses fluid sizing:
+
+    // Responsive width based on viewport
+    const windowWidth = isMobile ? '90vw' : '400px';
+    const windowHeight = isMobile ? '60vh' : '500px';
+
+================================================================================
+                    6. BREAKPOINTS AND MEDIA QUERIES
+================================================================================
+
+Breakpoints define specific screen widths where the layout changes.
+
+TAILWIND CSS BREAKPOINTS (used in this project):
+------------------------------------------------
+
++------------+--------+----------------------------------+
+| Breakpoint | Width  | Description                      |
++------------+--------+----------------------------------+
+| (default)  | 0px    | Mobile phones (portrait)         |
+| sm         | 640px  | Small devices (landscape phones) |
+| md         | 768px  | Medium devices (tablets)         |
+| lg         | 1024px | Large devices (laptops)          |
+| xl         | 1280px | Extra large devices (desktops)   |
+| 2xl        | 1536px | 2X large devices (large monitors)|
++------------+--------+----------------------------------+
+
+USING BREAKPOINTS IN TAILWIND:
+------------------------------
+
+    <!-- Stack on mobile, row on tablet and up -->
+    <div className="flex flex-col md:flex-row">
+
+    <!-- Hidden on mobile, visible on desktop -->
+    <div className="hidden lg:block">
+
+    <!-- Different padding at different sizes -->
+    <div className="p-2 sm:p-4 md:p-6 lg:p-8">
+
+USING BREAKPOINTS IN JAVASCRIPT:
+--------------------------------
+The useResponsive hook provides programmatic breakpoint access:
+
+    import { useResponsive } from '@/hooks/useResponsive';
+
+    function MyComponent() {
+      const { isAbove, isBelow, isBetween } = useResponsive();
+
+      // Check if above a breakpoint
+      if (isAbove('md')) {
+        // Tablet and larger
+      }
+
+      // Check if below a breakpoint
+      if (isBelow('lg')) {
+        // Smaller than desktop
+      }
+
+      // Check if between breakpoints
+      if (isBetween('sm', 'lg')) {
+        // Between small and large
+      }
+    }
+
+CUSTOM MEDIA QUERIES:
+---------------------
+For complex responsive logic, use CSS media queries:
+
+    /* Orientation-based */
+    @media (orientation: landscape) {
+      .container { flex-direction: row; }
+    }
+
+    /* High-resolution displays */
+    @media (min-resolution: 2dppx) {
+      .logo { background-image: url('logo@2x.png'); }
+    }
+
+    /* Hover capability (desktop) */
+    @media (hover: hover) {
+      .button:hover { background-color: blue; }
+    }
+
+================================================================================
+                    7. RESPONSIVE IMAGES AND ASSETS
+================================================================================
+
+Responsive images ensure fast loading and proper display on all devices.
+
+SRCSET FOR DIFFERENT RESOLUTIONS:
+---------------------------------
+
+    <img
+      src="image-400.jpg"
+      srcset="
+        image-400.jpg 400w,
+        image-800.jpg 800w,
+        image-1200.jpg 1200w
+      "
+      sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px"
+      alt="Responsive image"
+    />
+
+PICTURE ELEMENT FOR ART DIRECTION:
+----------------------------------
+
+    <picture>
+      <source media="(min-width: 1024px)" srcset="desktop.jpg" />
+      <source media="(min-width: 768px)" srcset="tablet.jpg" />
+      <img src="mobile.jpg" alt="Responsive image" />
+    </picture>
+
+SVG FOR ICONS AND LOGOS:
+------------------------
+SVGs scale perfectly without quality loss:
+
+    <!-- Inline SVG scales with container -->
+    <svg viewBox="0 0 24 24" className="w-6 h-6 md:w-8 md:h-8">
+      <path d="..." />
+    </svg>
+
+LAZY LOADING:
+-------------
+Defer loading of off-screen images:
+
+    <img src="image.jpg" loading="lazy" alt="Lazy loaded image" />
+
+ASPECT RATIO:
+-------------
+Prevent layout shifts by reserving space:
+
+    /* CSS aspect ratio */
+    .image-container {
+      aspect-ratio: 16 / 9;
+    }
+
+    /* Tailwind */
+    <div className="aspect-video">
+      <img src="video-thumbnail.jpg" className="object-cover w-full h-full" />
+    </div>
+
+================================================================================
+                  8. PERFORMANCE OPTIMIZATION TECHNIQUES
+================================================================================
+
+Performance optimization ensures fast load times and smooth interactions.
+
+TECHNIQUE 1: Code Splitting
+---------------------------
+Split code into smaller chunks loaded on demand:
+
+    // React lazy loading
+    const HeavyComponent = React.lazy(() => import('./HeavyComponent'));
+
+    function App() {
+      return (
+        <Suspense fallback={<Loading />}>
+          <HeavyComponent />
+        </Suspense>
+      );
+    }
+
+TECHNIQUE 2: Memoization
+------------------------
+Prevent unnecessary re-renders:
+
+    // useMemo for expensive calculations
+    const sortedItems = useMemo(() => {
+      return items.sort((a, b) => a.name.localeCompare(b.name));
+    }, [items]);
+
+    // useCallback for stable function references
+    const handleClick = useCallback(() => {
+      setCount(c => c + 1);
+    }, []);
+
+    // React.memo for component memoization
+    const ExpensiveComponent = React.memo(({ data }) => {
+      return <div>{/* render data */}</div>;
+    });
+
+TECHNIQUE 3: Virtualization
+---------------------------
+Render only visible items in long lists:
+
+    // Using react-window or similar
+    import { FixedSizeList } from 'react-window';
+
+    <FixedSizeList
+      height={400}
+      itemCount={1000}
+      itemSize={50}
+    >
+      {({ index, style }) => (
+        <div style={style}>Item {index}</div>
+      )}
+    </FixedSizeList>
+
+TECHNIQUE 4: Debouncing and Throttling
+--------------------------------------
+Limit frequency of expensive operations:
+
+    // Debounce search input
+    const debouncedSearch = useMemo(
+      () => debounce((query) => search(query), 300),
+      []
+    );
+
+    // Throttle scroll handler
+    const throttledScroll = useMemo(
+      () => throttle((e) => handleScroll(e), 100),
+      []
+    );
+
+TECHNIQUE 5: Asset Optimization
+-------------------------------
+Minimize file sizes:
+
+    - Compress images (WebP, AVIF formats)
+    - Minify CSS and JavaScript
+    - Use tree shaking to remove unused code
+    - Enable gzip/brotli compression
+    - Use CDN for static assets
+
+TECHNIQUE 6: Caching
+--------------------
+Cache responses and assets:
+
+    // Service worker caching
+    // HTTP cache headers
+    // React Query / SWR for data caching
+
+================================================================================
+                  9. USER EXPERIENCE (UX) BEST PRACTICES
+================================================================================
+
+UX best practices ensure the app feels responsive and intuitive.
+
+SIMPLICITY AND MINIMALISM:
+--------------------------
+Keep interfaces clean, focusing on essential features.
+
+    - Remove unnecessary elements
+    - Use whitespace effectively
+    - Prioritize primary actions
+    - Hide advanced options behind menus
+
+CLEAR NAVIGATION:
+-----------------
+Intuitive navigation that works on touchscreens.
+
+    - Hamburger menu for mobile (implemented in this app)
+    - Tab bar for primary navigation
+    - Breadcrumbs for deep hierarchies
+    - Back buttons for modal flows
+
+TOUCH-FRIENDLY CONTROLS:
+------------------------
+Large enough buttons with adequate spacing.
+
+    /* Minimum touch target: 44x44 pixels */
+    .touch-button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 12px 16px;
+    }
+
+    /* Adequate spacing between targets */
+    .button-group {
+      gap: 8px;
+    }
+
+MINIMAL USER INPUT:
+-------------------
+Reduce typing on mobile devices.
+
+    - Use autocomplete
+    - Provide smart defaults
+    - Use selection instead of typing
+    - Validate input in real-time
+
+FEEDBACK AND LOADING STATES:
+----------------------------
+Always show what's happening.
+
+    - Loading spinners for async operations
+    - Skeleton screens for content loading
+    - Toast notifications for actions
+    - Progress indicators for long operations
+
+CONSISTENCY:
+------------
+Maintain consistent design language.
+
+    - Same colors, fonts, icons across views
+    - Consistent button styles and sizes
+    - Predictable interaction patterns
+    - Uniform spacing and alignment
+
+================================================================================
+                      PART III: AXE 2 - METHODOLOGY
+================================================================================
+
+================================================================================
+                      10. STRATEGY AND PLANNING
+================================================================================
+
+Effective methodology saves time and ensures quality.
+
+DEFINE CLEAR GOALS AND MVP:
+---------------------------
+Outline core features for your Minimum Viable Product (MVP).
+
+    Priority 1: Core chat functionality
+    Priority 2: Multiple AI model support
+    Priority 3: Conversation management
+    Priority 4: Presets and customization
+    Priority 5: Advanced features (analytics, cloud sync)
+
+CHOOSE THE RIGHT TECH STACK:
+----------------------------
+This project uses:
+
+    Frontend:  React 19 + TypeScript + Tailwind CSS
+    Backend:   Express + tRPC
+    Database:  MySQL/TiDB with Drizzle ORM
+    Testing:   Vitest + Playwright
+
+ADOPT AGILE/LEAN PRACTICES:
+---------------------------
+Work in short iterations with continuous feedback.
+
+    1. Plan sprint goals
+    2. Implement features
+    3. Test and review
+    4. Get user feedback
+    5. Iterate and improve
+
+================================================================================
+                   11. COMPONENT-BASED ARCHITECTURE
+================================================================================
+
+Build reusable UI components for speed and consistency.
+
+COMPONENT HIERARCHY:
+--------------------
+
+    /client/src/components/
+    ├── ui/                    # Base UI components (shadcn/ui)
+    │   ├── button.tsx
+    │   ├── dialog.tsx
+    │   ├── dropdown-menu.tsx
+    │   └── ...
+    ├── templates/             # Reusable patterns
+    │   ├── ModalTemplate.tsx
+    │   └── DropdownTemplate.tsx
+    ├── FloatingChatWindow.tsx # Feature component
+    ├── ChatFooter.tsx         # Feature component
+    ├── PresetsPanel.tsx       # Feature component
+    └── ...
+
+COMPONENT DESIGN PRINCIPLES:
+----------------------------
+
+1. Single Responsibility
+   Each component does one thing well.
+
+2. Props for Configuration
+   Use props to customize behavior, not internal logic.
+
+3. Composition over Inheritance
+   Combine small components to build complex UIs.
+
+4. Consistent API
+   Similar components have similar prop interfaces.
+
+EXAMPLE: Reusable Modal Pattern
+-------------------------------
+
+    // ModalTemplate provides consistent modal structure
+    <ModalTemplate
+      isOpen={isOpen}
+      onClose={onClose}
+      title="My Modal"
+      footer={<Button onClick={onClose}>Close</Button>}
+    >
+      {/* Modal content */}
+    </ModalTemplate>
+
+================================================================================
+                 12. CENTRALIZED SYSTEMS (Z-INDEX, THEMING)
+================================================================================
+
+Centralized systems prevent inconsistencies and bugs.
+
+Z-INDEX MANAGEMENT:
+-------------------
+All z-index values are defined in one place:
+
+    /client/src/lib/z-index.ts
+
+    export const Z_VALUES = {
+      BELOW: -1,
+      BASE: 0,
+      PAGE: 10,
+      STICKY: 100,
+      FLOATING: 200,
+      WINDOW_DOCK: 230,
+      SIDEBAR_BACKDROP: 275,
+      SIDEBAR_MENU: 280,
+      DROPDOWN: 300,
+      MODAL_BACKDROP: 390,
+      MODAL: 400,
+      TOAST: 500,
+      TOOLTIP: 600,
+      CRITICAL: 9999,
+    };
+
+See Z_INDEX_FRAMEWORK_COMPLETE.txt for full documentation.
+
+THEMING SYSTEM:
+---------------
+Colors and design tokens are centralized in CSS variables:
+
+    /client/src/index.css
+
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 222.2 84% 4.9%;
+      --primary: 222.2 47.4% 11.2%;
+      --secondary: 210 40% 96.1%;
+      /* ... */
+    }
+
+    .dark {
+      --background: 222.2 84% 4.9%;
+      --foreground: 210 40% 98%;
+      /* ... */
+    }
+
+CONSTANTS AND CONFIGURATION:
+----------------------------
+Shared constants are centralized:
+
+    /shared/const.ts
+
+    export const APP_TITLE = 'Multi-AI Chat';
+    export const MAX_CHAT_WINDOWS = 10;
+    export const DEFAULT_MODELS = ['openai:GPT-4'];
+
+================================================================================
+                      13. DEVELOPMENT WORKFLOW
+================================================================================
+
+A structured workflow ensures consistent quality.
+
+STEP 1: Plan the Feature
+------------------------
+Before coding, define:
+    - What problem does this solve?
+    - What are the acceptance criteria?
+    - What components are needed?
+    - What tests are required?
+
+STEP 2: Create/Update TODO
+--------------------------
+Add tasks to todo.md:
+
+    ## Feature: New Chat Window
+    - [ ] Create FloatingChatWindow component
+    - [ ] Add drag functionality
+    - [ ] Add resize functionality
+    - [ ] Add z-index management
+    - [ ] Write tests
+
+STEP 3: Implement with Tests
+----------------------------
+Write tests alongside implementation:
+
+    // Component
+    export function FloatingChatWindow({ ... }) { ... }
+
+    // Test
+    describe('FloatingChatWindow', () => {
+      it('renders correctly', () => { ... });
+      it('can be dragged', () => { ... });
+      it('respects z-index hierarchy', () => { ... });
+    });
+
+STEP 4: Review and Refactor
+---------------------------
+Before committing:
+    - Run linter: pnpm lint
+    - Run tests: pnpm test
+    - Check TypeScript: pnpm check
+    - Manual testing on mobile
+
+STEP 5: Save Checkpoint
+-----------------------
+Create a checkpoint with descriptive message:
+
+    webdev_save_checkpoint({
+      description: "Implemented FloatingChatWindow with drag, resize, z-index"
+    });
+
+================================================================================
+                        14. CODE ORGANIZATION
+================================================================================
+
+Organized code is easier to maintain and extend.
+
+DIRECTORY STRUCTURE:
+--------------------
+
+    /client/
+    ├── src/
+    │   ├── components/        # React components
+    │   │   ├── ui/           # Base UI (shadcn)
+    │   │   └── templates/    # Reusable patterns
+    │   ├── contexts/         # React contexts
+    │   ├── hooks/            # Custom hooks
+    │   ├── lib/              # Utilities
+    │   ├── pages/            # Page components
+    │   └── types/            # TypeScript types
+    ├── public/               # Static assets
+    └── index.html
+
+    /server/
+    ├── _core/                # Core server functionality
+    ├── routers.ts            # tRPC routers
+    └── db.ts                 # Database helpers
+
+    /docs/                    # Documentation
+    /e2e/                     # End-to-end tests
+
+NAMING CONVENTIONS:
+-------------------
+
+    Components:     PascalCase      (FloatingChatWindow.tsx)
+    Hooks:          camelCase       (useResponsive.ts)
+    Utilities:      camelCase       (z-index.ts)
+    Constants:      SCREAMING_CASE  (Z_VALUES, MAX_WINDOWS)
+    Types:          PascalCase      (ChatMessage, WindowState)
+    Tests:          *.test.ts       (z-index.test.ts)
+
+FILE ORGANIZATION:
+------------------
+
+    // Good: Related code together
+    /components/
+    ├── FloatingChatWindow/
+    │   ├── FloatingChatWindow.tsx
+    │   ├── FloatingChatWindow.test.tsx
+    │   ├── ChatFooter.tsx
+    │   └── index.ts
+
+    // Avoid: Scattered related files
+    /components/FloatingChatWindow.tsx
+    /tests/FloatingChatWindow.test.tsx
+    /components/ChatFooter.tsx
+
+================================================================================
+                      PART IV: AXE 3 - EVALUATION
+================================================================================
+
+================================================================================
+                  15. USER EXPECTATIONS AND BENCHMARKS
+================================================================================
+
+Define what "responsive" means for your users.
+
+KEY METRICS:
+------------
+
++----------------------+------------------+----------------------------------+
+| Metric               | Target           | Description                      |
++----------------------+------------------+----------------------------------+
+| Launch Time          | < 3 seconds      | Time to first meaningful paint   |
+| Interaction Delay    | < 100ms          | Response to user input           |
+| Scroll Performance   | 60 FPS           | Smooth scrolling without jank    |
+| Animation Frame Rate | 60 FPS           | Smooth animations                |
+| Time to Interactive  | < 5 seconds      | When app becomes fully usable    |
+| Layout Shift         | < 0.1 CLS        | Visual stability during load     |
++----------------------+------------------+----------------------------------+
+
+USER-CENTRIC BENCHMARKS:
+------------------------
+
+    Mobile Users:
+    - Touch targets at least 44x44 pixels
+    - No horizontal scrolling required
+    - Text readable without zooming (16px minimum)
+    - Forms work with mobile keyboards
+
+    Tablet Users:
+    - Layouts adapt to both orientations
+    - Touch and pointer input both work
+    - Sidebars visible when space allows
+
+    Desktop Users:
+    - Hover states provide feedback
+    - Keyboard navigation works
+    - Multiple windows can be open
+    - Full feature set available
+
+================================================================================
+                16. MANUAL VISUAL AND FUNCTIONAL TESTING
+================================================================================
+
+Manual testing catches issues automated tests miss.
+
+DEVICE TESTING MATRIX:
+----------------------
+
++------------------+------------+------------+------------------+
+| Device Type      | Screen     | OS         | Priority         |
++------------------+------------+------------+------------------+
+| iPhone SE        | 375x667    | iOS        | High             |
+| iPhone 14 Pro    | 393x852    | iOS        | High             |
+| Samsung Galaxy   | 360x800    | Android    | High             |
+| iPad             | 768x1024   | iPadOS     | Medium           |
+| iPad Pro         | 1024x1366  | iPadOS     | Medium           |
+| Laptop           | 1366x768   | Windows    | High             |
+| Desktop          | 1920x1080  | Windows    | High             |
+| MacBook          | 1440x900   | macOS      | Medium           |
++------------------+------------+------------+------------------+
+
+MANUAL TEST CHECKLIST:
+----------------------
+
+    Layout Tests:
+    [ ] Text is readable on all screen sizes
+    [ ] Images scale correctly
+    [ ] No horizontal overflow
+    [ ] Proper spacing and alignment
+    [ ] Orientation changes handled
+
+    Interaction Tests:
+    [ ] Touch targets are large enough
+    [ ] Gestures work (swipe, pinch, etc.)
+    [ ] Keyboard input works
+    [ ] Focus states are visible
+    [ ] Forms submit correctly
+
+    Component Tests:
+    [ ] Modals open and close properly
+    [ ] Dropdowns appear above other content
+    [ ] Floating windows can be moved
+    [ ] Hamburger menu appears above everything
+    [ ] Toasts are visible
+
+    Performance Tests:
+    [ ] App loads quickly
+    [ ] Scrolling is smooth
+    [ ] Animations don't stutter
+    [ ] No memory leaks over time
+
+================================================================================
+                    17. AUTOMATED TESTING STRATEGY
+================================================================================
+
+Automated tests provide consistent, repeatable verification.
+
+TESTING PYRAMID:
+----------------
+
+                    /\
+                   /  \
+                  / E2E \        <- Few, slow, high confidence
+                 /------\
+                /  Integ \       <- Some, medium speed
+               /----------\
+              /    Unit    \     <- Many, fast, low confidence
+             /--------------\
+
+UNIT TESTS (Vitest):
+--------------------
+Test individual functions and components in isolation.
+
+    File: /client/src/lib/z-index.test.ts
+
+    describe('Z_VALUES', () => {
+      it('has correct layer hierarchy', () => {
+        expect(Z_VALUES.FLOATING).toBeLessThan(Z_VALUES.DROPDOWN);
+        expect(Z_VALUES.DROPDOWN).toBeLessThan(Z_VALUES.MODAL);
+      });
+    });
+
+    Run: pnpm test
+
+INTEGRATION TESTS:
+------------------
+Test component interactions and data flow.
+
+    describe('FloatingChatWindow', () => {
+      it('brings window to front when clicked', () => {
+        // Render multiple windows
+        // Click on background window
+        // Verify it moves to front
+      });
+    });
+
+END-TO-END TESTS (Playwright):
+------------------------------
+Test complete user flows in a real browser.
+
+    File: /e2e/z-index-layering.spec.ts
+
+    test('hamburger menu appears above chat windows', async ({ page }) => {
+      // Open a floating chat window
+      await page.click('[data-testid="mode-menu"]');
+      await page.click('text=Chat');
+
+      // Open hamburger menu
+      await page.click('[data-testid="hamburger-menu"]');
+
+      // Verify menu is visible and clickable
+      await expect(page.locator('[data-testid="menu-content"]')).toBeVisible();
+    });
+
+    Run: pnpm playwright test
+
+VISUAL REGRESSION TESTS:
+------------------------
+Detect unintended visual changes.
+
+    test('modal appears correctly', async ({ page }) => {
+      await page.goto('/');
+      await page.click('button:has-text("Open Modal")');
+      await expect(page).toHaveScreenshot('modal-open.png');
+    });
+
+================================================================================
+                       18. PERFORMANCE METRICS
+================================================================================
+
+Measure and track performance over time.
+
+CORE WEB VITALS:
+----------------
+
+    LCP (Largest Contentful Paint): < 2.5s
+    - Measures loading performance
+    - When main content is visible
+
+    FID (First Input Delay): < 100ms
+    - Measures interactivity
+    - Time to respond to first input
+
+    CLS (Cumulative Layout Shift): < 0.1
+    - Measures visual stability
+    - How much content shifts during load
+
+CUSTOM METRICS:
+---------------
+
+    // Measure component render time
+    const start = performance.now();
+    renderComponent();
+    const duration = performance.now() - start;
+    console.log(`Render time: ${duration}ms`);
+
+    // Measure API response time
+    const apiStart = performance.now();
+    await fetchData();
+    const apiDuration = performance.now() - apiStart;
+
+MONITORING TOOLS:
+-----------------
+
+    Browser DevTools:
+    - Performance tab for profiling
+    - Network tab for load times
+    - Lighthouse for audits
+
+    React DevTools:
+    - Profiler for component renders
+    - Highlight updates option
+
+================================================================================
+                     19. CONTINUOUS INTEGRATION
+================================================================================
+
+Automate testing in the development pipeline.
+
+PRE-COMMIT HOOKS:
+-----------------
+File: /.husky/pre-commit
+
+    #!/bin/sh
+    . "$(dirname "$0")/_/husky.sh"
+
+    # Type checking
+    pnpm check
+
+    # Run z-index tests
+    pnpm test -- --run z-index
+
+    # Lint check
+    pnpm lint
+
+CI/CD PIPELINE:
+---------------
+Run on every pull request:
+
+    1. Install dependencies
+    2. Type check (pnpm check)
+    3. Lint (pnpm lint)
+    4. Unit tests (pnpm test)
+    5. Build (pnpm build)
+    6. E2E tests (pnpm playwright test)
+
+AUTOMATED CHECKS:
+-----------------
+
+    - TypeScript compilation
+    - ESLint rules (including z-index)
+    - Unit test coverage
+    - E2E test pass rate
+    - Bundle size limits
+    - Performance budgets
+
+================================================================================
+                       PART V: IMPLEMENTATION
+================================================================================
+
+================================================================================
+                   20. IMPLEMENTATION FILES REFERENCE
+================================================================================
+
+CORE RESPONSIVE UTILITIES:
+--------------------------
+
+    /client/src/hooks/useResponsive.ts
+    ----------------------------------
+    Main hook for responsive design utilities.
+    Exports: useResponsive, useBreakpoint, useTouchHandlers
+
+    /client/src/lib/z-index.ts
+    --------------------------
+    Centralized z-index management.
+    Exports: Z_VALUES, Z_CLASS, Z_INDEX, getZIndex, getZIndexClass
+
+    /client/src/contexts/ZIndexContext.tsx
+    --------------------------------------
+    Dynamic z-index manager for bring-to-front.
+    Exports: ZIndexProvider, useZIndexManager, useBringToFront
+
+COMPONENT TEMPLATES:
+--------------------
+
+    /client/src/components/templates/ModalTemplate.tsx
+    ---------------------------------------------------
+    Reusable modal pattern with proper z-index.
+
+    /client/src/components/templates/DropdownTemplate.tsx
+    -----------------------------------------------------
+    Reusable dropdown pattern with proper z-index.
+
+CONFIGURATION:
+--------------
+
+    /eslint.config.js
+    -----------------
+    ESLint rules including z-index enforcement.
+
+    /.husky/pre-commit
+    ------------------
+    Pre-commit hooks for automated checks.
+
+    /vitest.config.ts
+    -----------------
+    Test configuration.
+
+    /playwright.config.ts
+    ---------------------
+    E2E test configuration.
+
+================================================================================
+                   21. useResponsive HOOK DOCUMENTATION
+================================================================================
+
+The useResponsive hook provides all responsive design utilities.
+
+IMPORT:
+-------
+
+    import { useResponsive } from '@/hooks/useResponsive';
+
+BASIC USAGE:
+------------
+
+    function MyComponent() {
+      const {
+        // Device detection
+        isMobile,      // < 768px
+        isTablet,      // 768px - 1023px
+        isDesktop,     // >= 1024px
+
+        // Viewport info
+        viewport,      // { width, height }
+
+        // Orientation
+        isPortrait,    // height > width
+        isLandscape,   // width > height
+
+        // Touch detection
+        isTouch,       // Touch-capable device
+
+        // Breakpoint utilities
+        isAbove,       // isAbove('md') = width >= 768
+        isBelow,       // isBelow('lg') = width < 1024
+        isBetween,     // isBetween('sm', 'lg')
+      } = useResponsive();
+
+      return (
+        <div>
+          {isMobile && <MobileView />}
+          {isDesktop && <DesktopView />}
+        </div>
+      );
+    }
+
+BREAKPOINT UTILITIES:
+---------------------
+
+    // Check if above a breakpoint
+    const showSidebar = isAbove('lg');  // >= 1024px
+
+    // Check if below a breakpoint
+    const useMobileNav = isBelow('md'); // < 768px
+
+    // Check if between breakpoints
+    const isTabletRange = isBetween('md', 'lg'); // 768px - 1023px
+
+VIEWPORT INFO:
+--------------
+
+    const { viewport } = useResponsive();
+
+    console.log(viewport.width);   // e.g., 1920
+    console.log(viewport.height);  // e.g., 1080
+
+SINGLE BREAKPOINT CHECK:
+------------------------
+For better performance when only one check is needed:
+
+    import { useBreakpoint } from '@/hooks/useResponsive';
+
+    const isLargeScreen = useBreakpoint('lg', 'above');
+
+================================================================================
+                      22. COMPONENT TEMPLATES
+================================================================================
+
+Templates provide consistent patterns for common components.
+
+MODAL TEMPLATE:
+---------------
+
+    import { ModalTemplate } from '@/components/templates';
+
+    function MyModal({ isOpen, onClose }) {
+      return (
+        <ModalTemplate
+          isOpen={isOpen}
+          onClose={onClose}
+          title="Modal Title"
+          maxWidth="md"           // 'sm' | 'md' | 'lg' | 'xl'
+          closeOnBackdrop={true}  // Close when clicking backdrop
+          closeOnEscape={true}    // Close on Escape key
+          footer={
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit}>
+                Submit
+              </Button>
+            </div>
+          }
+        >
+          <p>Modal content goes here</p>
+        </ModalTemplate>
+      );
+    }
+
+NESTED MODAL:
+-------------
+
+    <ModalTemplate
+      isOpen={showConfirm}
+      onClose={() => setShowConfirm(false)}
+      title="Confirm Action"
+      isNested={true}  // Uses higher z-index
+      maxWidth="sm"
+    >
+      <p>Are you sure?</p>
+    </ModalTemplate>
+
+DROPDOWN TEMPLATE:
+------------------
+
+    import { DropdownTemplate } from '@/components/templates';
+
+    function MyDropdown() {
+      return (
+        <DropdownTemplate
+          trigger={<Button>Options</Button>}
+          items={[
+            { id: 'edit', label: 'Edit', icon: <EditIcon />, onClick: handleEdit },
+            { id: 'delete', label: 'Delete', icon: <TrashIcon />, onClick: handleDelete },
+          ]}
+          align="left"     // 'left' | 'right' | 'center'
+          inModal={false}  // Set true if inside a modal
+        />
+      );
+    }
+
+================================================================================
+                    23. ESLINT RULES AND ENFORCEMENT
+================================================================================
+
+ESLint rules prevent common responsiveness mistakes.
+
+Z-INDEX RULES:
+--------------
+
+    Rule 1: no-arbitrary-z-index
+    Detects: z-[999], z-[50], etc.
+    Severity: ERROR
+    Fix: Use Z_CLASS.* constants
+
+    Rule 2: no-numeric-z-index
+    Detects: z-50, z-40, z-30, etc.
+    Severity: ERROR
+    Fix: Use Z_CLASS.* constants
+
+    Rule 3: no-template-literal-in-string
+    Detects: "z-[${...}]" (broken interpolation)
+    Severity: ERROR
+    Fix: Use template literal or Z_CLASS
+
+RUNNING LINT:
+-------------
+
+    # Check all files
+    pnpm lint
+
+    # Auto-fix where possible
+    pnpm lint -- --fix
+
+    # Check specific file
+    pnpm lint -- client/src/components/MyComponent.tsx
+
+FIXING VIOLATIONS:
+------------------
+
+    // ❌ Violation: Arbitrary z-index
+    <div className="z-[999]">
+
+    // ✅ Fix: Use Z_CLASS
+    import { Z_CLASS } from '@/lib/z-index';
+    <div className={Z_CLASS.CRITICAL}>
+
+    // ❌ Violation: Numeric z-index
+    <div className="z-50">
+
+    // ✅ Fix: Use Z_CLASS
+    <div className={Z_CLASS.FLOATING}>
+
+================================================================================
+                       24. TROUBLESHOOTING GUIDE
+================================================================================
+
+PROBLEM: Component not responsive on mobile
+-------------------------------------------
+Symptoms: Layout breaks on small screens
+
+Solutions:
+1. Check if using fixed widths (change to max-w-* or percentages)
+2. Verify flex-wrap is set for flex containers
+3. Check for horizontal overflow (overflow-x-hidden)
+4. Test with useResponsive hook for conditional rendering
+
+PROBLEM: Touch interactions not working
+---------------------------------------
+Symptoms: Buttons don't respond to taps
+
+Solutions:
+1. Check touch target size (minimum 44x44 pixels)
+2. Verify no overlapping elements blocking touches
+3. Check z-index of interactive elements
+4. Add onTouchEnd handlers alongside onClick
+
+PROBLEM: Element appears behind another
+---------------------------------------
+Symptoms: Modal behind dropdown, menu behind window
+
+Solutions:
+1. Check z-index values using Z_CLASS constants
+2. Verify parent elements don't create stacking contexts
+3. Use the z-index hierarchy table to determine correct layer
+4. Test with browser DevTools to inspect z-index values
+
+PROBLEM: Layout shift during load
+---------------------------------
+Symptoms: Content jumps around as page loads
+
+Solutions:
+1. Set explicit dimensions on images (aspect-ratio)
+2. Reserve space for dynamic content
+3. Use skeleton loaders
+4. Avoid inserting content above existing content
+
+PROBLEM: Slow performance on mobile
+-----------------------------------
+Symptoms: Laggy scrolling, slow interactions
+
+Solutions:
+1. Check for unnecessary re-renders (React DevTools Profiler)
+2. Memoize expensive calculations (useMemo)
+3. Virtualize long lists
+4. Reduce DOM complexity
+5. Optimize images and assets
+
+================================================================================
+                       25. QUICK REFERENCE CARD
+================================================================================
+
+IMPORTS:
+--------
+    import { useResponsive } from '@/hooks/useResponsive';
+    import { Z_CLASS, Z_VALUES } from '@/lib/z-index';
+    import { ModalTemplate, DropdownTemplate } from '@/components/templates';
+
+DEVICE DETECTION:
+-----------------
+    const { isMobile, isTablet, isDesktop } = useResponsive();
+
+BREAKPOINT CHECKS:
+------------------
+    const { isAbove, isBelow, isBetween } = useResponsive();
+    isAbove('md')       // >= 768px
+    isBelow('lg')       // < 1024px
+    isBetween('sm','lg') // 640px - 1023px
+
+Z-INDEX LAYERS:
+---------------
+    FLOATING:         200   (chat windows)
+    SIDEBAR_BACKDROP: 275   (menu backdrop)
+    SIDEBAR_MENU:     280   (hamburger menu)
+    DROPDOWN:         300   (dropdowns)
+    MODAL:            400   (modals)
+    TOAST:            500   (notifications)
+
+TAILWIND BREAKPOINTS:
+---------------------
+    sm:   640px
+    md:   768px
+    lg:   1024px
+    xl:   1280px
+    2xl:  1536px
+
+COMMANDS:
+---------
+    pnpm test              # Run unit tests
+    pnpm lint              # Run linter
+    pnpm check             # TypeScript check
+    pnpm playwright test   # Run E2E tests
+
+TOUCH TARGETS:
+--------------
+    Minimum size: 44x44 pixels
+    Minimum spacing: 8px between targets
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
+
+For questions or updates to this framework, refer to:
+- /client/src/hooks/useResponsive.ts (responsive utilities)
+- /client/src/lib/z-index.ts (z-index system)
+- /docs/RESPONSIVENESS_FRAMEWORK.md (additional documentation)
+- /docs/Z_INDEX_FRAMEWORK_COMPLETE.txt (z-index details)

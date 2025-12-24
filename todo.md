@@ -290,3 +290,14 @@
 - [x] Add Playwright test for hamburger menu appearing above chat windows
 - [x] Add SIDEBAR_BACKDROP (z-275) and SIDEBAR_MENU (z-280) layers to z-index system
 - [x] Update vitest tests for new sidebar layers
+
+## ChatControlBox Reusable Component
+- [x] Analyze existing ChatFooter and FloatingChatWindow code
+- [x] Create ChatControlBox component (framework-compliant)
+- [x] Include all control buttons with built-in behaviors
+- [x] Include message input row with all features
+- [x] Integrate all modals/panels (Z_INDEX_FRAMEWORK compliant)
+- [x] Apply RESPONSIVENESS_FRAMEWORK patterns
+- [x] Test component in EmptyPage (/test/chat-control-box route)
+- [x] Document component usage (JSDoc + index.ts exports)
+- [x] Write vitest unit tests (22 tests passing)

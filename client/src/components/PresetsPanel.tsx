@@ -1,3 +1,4 @@
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import { QuickPreset } from '@/lib/quick-presets';

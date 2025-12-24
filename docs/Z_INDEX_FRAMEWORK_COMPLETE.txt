@@ -1,0 +1,539 @@
+================================================================================
+                    Z-INDEX FRAMEWORK - COMPLETE DOCUMENTATION
+                         Multi-AI Chat Application
+================================================================================
+
+Author: Manus AI
+Version: 1.0
+Last Updated: December 24, 2025
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+1. INTRODUCTION
+2. THE PROBLEM WE SOLVED
+3. Z-INDEX LAYER HIERARCHY
+4. IMPLEMENTATION FILES
+5. HOW TO USE THE FRAMEWORK
+6. COMPONENT MAPPINGS
+7. ANTI-PATTERNS (WHAT NOT TO DO)
+8. ESLINT ENFORCEMENT
+9. TESTING STRATEGY
+10. TROUBLESHOOTING GUIDE
+11. MIGRATION GUIDE FOR NEW COMPONENTS
+12. QUICK REFERENCE CARD
+
+================================================================================
+                              1. INTRODUCTION
+================================================================================
+
+This document describes the centralized z-index management system implemented
+in the Multi-AI Chat application. The framework ensures consistent layering
+of UI elements across all components, preventing visual bugs where elements
+appear behind other elements unexpectedly.
+
+The framework is MANDATORY for all components in this application. Any new
+component that requires z-index positioning MUST use this framework.
+
+================================================================================
+                         2. THE PROBLEM WE SOLVED
+================================================================================
+
+ORIGINAL ISSUE:
+---------------
+The hamburger menu sidebar was appearing BEHIND floating chat windows on mobile
+devices. This was caused by:
+
+1. Inconsistent z-index values across components
+2. Hardcoded z-index values (z-50, z-40) that didn't follow a hierarchy
+3. No centralized system to manage stacking order
+4. Different developers using arbitrary z-index values
+
+SYMPTOMS:
+---------
+- Hamburger menu (z-50) appeared behind FloatingChatWindow (z-200)
+- Dropdown menus sometimes appeared behind modals
+- Tooltips were hidden by other floating elements
+- Inconsistent behavior between desktop and mobile
+
+SOLUTION:
+---------
+A centralized z-index framework with:
+- Defined layer hierarchy (13 layers from -1 to 9999)
+- TypeScript constants for type safety
+- Tailwind CSS class constants for easy use
+- ESLint rules to prevent hardcoded values
+- Automated tests to verify layering
+
+================================================================================
+                        3. Z-INDEX LAYER HIERARCHY
+================================================================================
+
+The framework defines 13 distinct layers, each with a specific purpose:
+
++-------+------------------+-------+------------------------------------------+
+| Order | Layer Name       | Value | Purpose                                  |
++-------+------------------+-------+------------------------------------------+
+|   1   | BELOW            |   -1  | Elements that should appear behind base  |
+|   2   | BASE             |    0  | Default stacking context                 |
+|   3   | PAGE             |   10  | Page-level elements (headers, footers)   |
+|   4   | STICKY           |  100  | Sticky navigation, fixed headers         |
+|   5   | FLOATING         |  200  | Floating chat windows, panels            |
+|   6   | WINDOW_DOCK      |  230  | Minimized window dock at bottom          |
+|   7   | SIDEBAR_BACKDROP |  275  | Backdrop behind sidebar menu             |
+|   8   | SIDEBAR_MENU     |  280  | Hamburger menu sidebar                   |
+|   9   | DROPDOWN         |  300  | Dropdown menus, select menus             |
+|  10   | MODAL_BACKDROP   |  390  | Dark overlay behind modals               |
+|  11   | MODAL            |  400  | Modal dialogs, full-screen overlays      |
+|  12   | TOAST            |  500  | Toast notifications, alerts              |
+|  13   | TOOLTIP          |  600  | Tooltips, popovers                       |
+|  14   | CRITICAL         | 9999  | Critical overlays (loading, errors)      |
++-------+------------------+-------+------------------------------------------+
+
+VISUAL STACKING ORDER (bottom to top):
+--------------------------------------
+
+    CRITICAL (9999)     ← Loading screens, error overlays
+         ↑
+    TOOLTIP (600)       ← Hover tooltips
+         ↑
+    TOAST (500)         ← Notification toasts
+         ↑
+    MODAL (400)         ← Dialog modals
+         ↑
+    MODAL_BACKDROP (390)← Dark backdrop behind modals
+         ↑
+    DROPDOWN (300)      ← Dropdown menus, selects
+         ↑
+    SIDEBAR_MENU (280)  ← Hamburger menu sidebar  ★ KEY FIX
+         ↑
+    SIDEBAR_BACKDROP(275)← Backdrop behind sidebar
+         ↑
+    WINDOW_DOCK (230)   ← Minimized windows dock
+         ↑
+    FLOATING (200)      ← Floating chat windows
+         ↑
+    STICKY (100)        ← Sticky headers
+         ↑
+    PAGE (10)           ← Page elements
+         ↑
+    BASE (0)            ← Default content
+         ↑
+    BELOW (-1)          ← Background elements
+
+================================================================================
+                         4. IMPLEMENTATION FILES
+================================================================================
+
+The framework consists of these key files:
+
+FILE 1: /client/src/lib/z-index.ts
+----------------------------------
+This is the CORE file containing all z-index definitions.
+
+Contents:
+- Z_VALUES: Numeric z-index values (recommended for inline styles)
+- Z_CLASS: Tailwind CSS class strings (recommended for className)
+- Z_INDEX: Alias for Z_VALUES (backward compatibility)
+- COMPONENT_Z_INDEX: Component-specific numeric mappings
+- COMPONENT_Z_CLASS: Component-specific class mappings
+- Utility functions: getZIndex(), getZIndexClass(), getZIndexStyle()
+
+FILE 2: /client/src/contexts/ZIndexContext.tsx
+----------------------------------------------
+Dynamic z-index manager for "bring to front" functionality.
+
+Features:
+- Tracks all registered floating elements
+- Assigns z-index based on interaction order
+- Supports layer categories with base values
+- Provides hooks: useZIndexManager, useBringToFront
+
+FILE 3: /docs/RESPONSIVENESS_FRAMEWORK.md
+-----------------------------------------
+Documentation and guidelines for the framework.
+
+FILE 4: /eslint.config.js
+-------------------------
+ESLint rules to enforce framework usage.
+
+FILE 5: /e2e/z-index-layering.spec.ts
+-------------------------------------
+Playwright visual regression tests.
+
+FILE 6: /client/src/lib/z-index.test.ts
+---------------------------------------
+Unit tests for z-index utilities.
+
+================================================================================
+                       5. HOW TO USE THE FRAMEWORK
+================================================================================
+
+STEP 1: Import the constants
+----------------------------
+
+    import { Z_CLASS, Z_VALUES } from '@/lib/z-index';
+
+STEP 2: Use Z_CLASS in className (RECOMMENDED)
+----------------------------------------------
+
+    // For a floating window:
+    <div className={`fixed ${Z_CLASS.FLOATING}`}>
+      ...
+    </div>
+
+    // For a modal:
+    <div className={`fixed inset-0 ${Z_CLASS.MODAL_BACKDROP}`}>
+      <div className={`${Z_CLASS.MODAL}`}>
+        Modal content
+      </div>
+    </div>
+
+    // For a dropdown:
+    <div className={`absolute ${Z_CLASS.DROPDOWN}`}>
+      Dropdown content
+    </div>
+
+    // For sidebar menu:
+    <div className={`fixed ${Z_CLASS.SIDEBAR_BACKDROP}`} onClick={close} />
+    <div className={`fixed ${Z_CLASS.SIDEBAR_MENU}`}>
+      Menu content
+    </div>
+
+STEP 3: Use Z_VALUES for inline styles (when needed)
+----------------------------------------------------
+
+    // For dynamic z-index:
+    <div style={{ zIndex: Z_VALUES.MODAL }}>
+      ...
+    </div>
+
+    // For calculated z-index:
+    <div style={{ zIndex: Z_VALUES.FLOATING + windowIndex }}>
+      ...
+    </div>
+
+STEP 4: Use utility functions (advanced)
+----------------------------------------
+
+    import { getZIndexClass, getZIndexStyle } from '@/lib/z-index';
+
+    // Get class by layer name:
+    const className = getZIndexClass('MODAL'); // Returns 'z-[400]'
+
+    // Get style object:
+    const style = getZIndexStyle('DROPDOWN'); // Returns { zIndex: 300 }
+
+================================================================================
+                        6. COMPONENT MAPPINGS
+================================================================================
+
+The framework provides pre-defined mappings for common components:
+
+COMPONENT_Z_CLASS (for className):
+----------------------------------
+    FloatingChatWindow    → Z_CLASS.FLOATING         (z-[200])
+    WindowDock            → Z_CLASS.WINDOW_DOCK      (z-[230])
+    SidebarBackdrop       → Z_CLASS.SIDEBAR_BACKDROP (z-[275])
+    SidebarMenu           → Z_CLASS.SIDEBAR_MENU     (z-[280])
+    DropdownMenu          → Z_CLASS.DROPDOWN         (z-[300])
+    SelectContent         → Z_CLASS.DROPDOWN         (z-[300])
+    ModalBackdrop         → Z_CLASS.MODAL_BACKDROP   (z-[390])
+    ModalDialog           → Z_CLASS.MODAL            (z-[400])
+    Toast                 → Z_CLASS.TOAST            (z-[500])
+    Tooltip               → Z_CLASS.TOOLTIP          (z-[600])
+
+USAGE EXAMPLE:
+--------------
+
+    import { COMPONENT_Z_CLASS } from '@/lib/z-index';
+
+    <div className={COMPONENT_Z_CLASS.FloatingChatWindow}>
+      Chat window content
+    </div>
+
+================================================================================
+                    7. ANTI-PATTERNS (WHAT NOT TO DO)
+================================================================================
+
+ANTI-PATTERN 1: Hardcoded Tailwind z-index classes
+--------------------------------------------------
+
+    ❌ WRONG:
+    <div className="z-50">...</div>
+    <div className="z-[999]">...</div>
+    <div className="z-40">...</div>
+
+    ✅ CORRECT:
+    <div className={Z_CLASS.FLOATING}>...</div>
+    <div className={Z_CLASS.MODAL}>...</div>
+    <div className={Z_CLASS.SIDEBAR_MENU}>...</div>
+
+ANTI-PATTERN 2: Template literals inside strings
+------------------------------------------------
+
+    ❌ WRONG (causes React Error #185):
+    className="z-[${Z_INDEX.DROPDOWN}]"  // Template literal not interpolated!
+
+    ✅ CORRECT:
+    className={`z-[${Z_VALUES.DROPDOWN}]`}  // Proper template literal
+    className={Z_CLASS.DROPDOWN}             // Or use pre-built class
+
+ANTI-PATTERN 3: Inline style with magic numbers
+-----------------------------------------------
+
+    ❌ WRONG:
+    style={{ zIndex: 9999 }}
+    style={{ zIndex: 50 }}
+
+    ✅ CORRECT:
+    style={{ zIndex: Z_VALUES.CRITICAL }}
+    style={{ zIndex: Z_VALUES.FLOATING }}
+
+ANTI-PATTERN 4: Using z-index without understanding hierarchy
+-------------------------------------------------------------
+
+    ❌ WRONG (dropdown will appear behind modal):
+    // Modal at z-50
+    <div className="z-50">Modal</div>
+    // Dropdown at z-40
+    <div className="z-40">Dropdown</div>
+
+    ✅ CORRECT (proper hierarchy):
+    <div className={Z_CLASS.MODAL}>Modal</div>
+    <div className={Z_CLASS.DROPDOWN}>Dropdown</div>
+
+ANTI-PATTERN 5: setState during render
+--------------------------------------
+
+    ❌ WRONG (causes infinite loop):
+    function Component() {
+      const [zIndex, setZIndex] = useState(0);
+      setZIndex(100); // Called during render!
+      return <div style={{ zIndex }}>...</div>;
+    }
+
+    ✅ CORRECT:
+    function Component() {
+      const [zIndex, setZIndex] = useState(Z_VALUES.FLOATING);
+      useEffect(() => {
+        // Only update in useEffect
+        setZIndex(Z_VALUES.MODAL);
+      }, [someCondition]);
+      return <div style={{ zIndex }}>...</div>;
+    }
+
+================================================================================
+                         8. ESLINT ENFORCEMENT
+================================================================================
+
+The ESLint configuration enforces z-index framework usage:
+
+RULE 1: No arbitrary z-index values
+-----------------------------------
+Detects: z-[999], z-[50], z-[100], etc.
+Severity: ERROR (blocks commit)
+Message: "Avoid arbitrary z-index values. Use Z_CLASS from @/lib/z-index"
+
+RULE 2: No numeric Tailwind z-index classes
+-------------------------------------------
+Detects: z-50, z-40, z-30, z-20, z-10, z-0
+Severity: ERROR (blocks commit)
+Message: "Avoid Tailwind z-index utilities. Use Z_CLASS from @/lib/z-index"
+
+RULE 3: No template literals in strings
+---------------------------------------
+Detects: "z-[${...}]" (template literal inside regular string)
+Severity: ERROR (blocks commit)
+Message: "Template literal inside regular string - use template literal syntax"
+
+HOW TO RUN LINT:
+----------------
+
+    # Check all files:
+    pnpm lint
+
+    # Check specific file:
+    pnpm lint -- client/src/components/MyComponent.tsx
+
+    # Auto-fix (where possible):
+    pnpm lint -- --fix
+
+================================================================================
+                          9. TESTING STRATEGY
+================================================================================
+
+The framework includes comprehensive tests at multiple levels:
+
+UNIT TESTS (vitest):
+--------------------
+File: /client/src/lib/z-index.test.ts
+
+Tests include:
+- All Z_VALUES are defined and numeric
+- All Z_CLASS strings are valid Tailwind classes
+- Layer hierarchy is correct (FLOATING < SIDEBAR < DROPDOWN < MODAL)
+- Utility functions return correct values
+- Anti-pattern detection works
+
+Run: pnpm test -- z-index
+
+VISUAL REGRESSION TESTS (Playwright):
+-------------------------------------
+File: /e2e/z-index-layering.spec.ts
+
+Tests include:
+- Dropdown appears above floating window
+- Modal appears above dropdown
+- Hamburger menu appears above floating window
+- Multiple floating windows stack correctly
+- Toast appears above modal
+
+Run: pnpm playwright test z-index-layering
+
+PRE-COMMIT HOOK:
+----------------
+File: /.husky/pre-commit
+
+Runs before every commit:
+1. TypeScript type checking
+2. Z-index unit tests
+3. ESLint z-index rules
+
+If any check fails, the commit is blocked.
+
+================================================================================
+                        10. TROUBLESHOOTING GUIDE
+================================================================================
+
+PROBLEM: Element appears behind another element
+-----------------------------------------------
+Solution:
+1. Check both elements' z-index values
+2. Verify they use Z_CLASS constants
+3. Check the hierarchy table - higher layer should have higher value
+4. Ensure parent elements don't create new stacking contexts
+
+PROBLEM: React Error #185 (Maximum update depth exceeded)
+---------------------------------------------------------
+Cause: setState called during render phase
+Solution:
+1. Move setState calls to useEffect
+2. Check for template literals inside regular strings
+3. Verify z-index values are not being recalculated on every render
+
+PROBLEM: Dropdown menu appears behind modal
+-------------------------------------------
+Solution:
+1. Modal should use Z_CLASS.MODAL (z-[400])
+2. Dropdown should use Z_CLASS.DROPDOWN (z-[300])
+3. If dropdown is INSIDE modal, it inherits modal's stacking context
+4. For dropdowns inside modals, use portal to render at document root
+
+PROBLEM: ESLint errors on z-index
+---------------------------------
+Solution:
+1. Replace z-50 with Z_CLASS.FLOATING (or appropriate layer)
+2. Replace z-[999] with Z_CLASS.CRITICAL
+3. Import Z_CLASS from '@/lib/z-index'
+
+PROBLEM: Hamburger menu behind chat window
+------------------------------------------
+Solution (ALREADY FIXED):
+1. Menu uses Z_CLASS.SIDEBAR_MENU (z-[280])
+2. Backdrop uses Z_CLASS.SIDEBAR_BACKDROP (z-[275])
+3. Chat window uses Z_CLASS.FLOATING (z-[200])
+4. 280 > 200, so menu appears in front
+
+================================================================================
+                   11. MIGRATION GUIDE FOR NEW COMPONENTS
+================================================================================
+
+When creating a new component that needs z-index:
+
+STEP 1: Identify the layer
+--------------------------
+Ask: "What should this element appear above/below?"
+
+- Above page content only → FLOATING (200)
+- Above floating windows → DROPDOWN (300) or MODAL (400)
+- Above everything → TOAST (500) or CRITICAL (9999)
+
+STEP 2: Import the framework
+----------------------------
+
+    import { Z_CLASS } from '@/lib/z-index';
+
+STEP 3: Apply the class
+-----------------------
+
+    <div className={`fixed ${Z_CLASS.MODAL}`}>
+      ...
+    </div>
+
+STEP 4: Test the layering
+-------------------------
+
+1. Open the component
+2. Open other components that might overlap
+3. Verify correct stacking order
+4. Test on mobile viewport
+
+STEP 5: Add tests if needed
+---------------------------
+
+For critical components, add a Playwright test:
+
+    test('MyComponent appears above FloatingWindow', async ({ page }) => {
+      // Open floating window
+      // Open MyComponent
+      // Verify MyComponent is visible and clickable
+    });
+
+================================================================================
+                        12. QUICK REFERENCE CARD
+================================================================================
+
+IMPORTS:
+--------
+    import { Z_CLASS, Z_VALUES } from '@/lib/z-index';
+
+COMMON USAGE:
+-------------
+    Floating window:    className={Z_CLASS.FLOATING}
+    Dropdown menu:      className={Z_CLASS.DROPDOWN}
+    Modal dialog:       className={Z_CLASS.MODAL}
+    Modal backdrop:     className={Z_CLASS.MODAL_BACKDROP}
+    Sidebar menu:       className={Z_CLASS.SIDEBAR_MENU}
+    Sidebar backdrop:   className={Z_CLASS.SIDEBAR_BACKDROP}
+    Toast notification: className={Z_CLASS.TOAST}
+    Tooltip:            className={Z_CLASS.TOOLTIP}
+
+NUMERIC VALUES:
+---------------
+    FLOATING:         200
+    WINDOW_DOCK:      230
+    SIDEBAR_BACKDROP: 275
+    SIDEBAR_MENU:     280
+    DROPDOWN:         300
+    MODAL_BACKDROP:   390
+    MODAL:            400
+    TOAST:            500
+    TOOLTIP:          600
+    CRITICAL:         9999
+
+COMMANDS:
+---------
+    Run tests:        pnpm test -- z-index
+    Run lint:         pnpm lint
+    Run Playwright:   pnpm playwright test z-index-layering
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
+
+For questions or updates to this framework, refer to:
+- /client/src/lib/z-index.ts (source of truth)
+- /docs/RESPONSIVENESS_FRAMEWORK.md (additional documentation)
+- /e2e/z-index-layering.spec.ts (test examples)

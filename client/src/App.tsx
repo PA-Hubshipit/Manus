@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import ConversationPage from "./pages/ConversationPage";
 import EmptyPage from "./pages/EmptyPage";
 import AgentsPage from "./pages/AgentsPage";
+import ChatControlBoxTest from "./pages/ChatControlBoxTest";
 
 /**
  * Application Router
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/conversation" component={ConversationPage} />
       <Route path="/agents" component={AgentsPage} />
       <Route path="/home" component={Home} />
+      <Route path="/test/chat-control-box" component={ChatControlBoxTest} />
       
       {/* Catch-all route for 404 - handles all unmatched paths */}
       <Route component={NotFound} />
