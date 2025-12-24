@@ -331,3 +331,6 @@
 - [x] Create Relationships registry (relationships.ts)
 - [x] Create enforcement tests (__tests__/fmf.test.ts)
 - [x] Run tests and verify all pass (65 FMF tests + 202 total tests passing)
+
+## Bug Fix - Theme Label in Hamburger Menu
+- [x] Fix "Light Mode/Dark Mode" label to "Theme" in hamburger menu (FMF violation: uses reserved term "Mode")

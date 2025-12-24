@@ -301,7 +301,7 @@ export default function EmptyPage() {
                   className="w-full flex items-center gap-3 px-2 py-2 hover:bg-accent rounded-md transition-colors text-left"
                 >
                   {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                  <span className="text-sm">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                  <span className="text-sm">Theme</span>
                 </button>
               </div>
 
