@@ -157,6 +157,8 @@ export interface ChatControlBoxProps {
   onNewChat?: () => void;
   /** Callback when synthesis is requested */
   onSynthesize?: () => void;
+  /** Callback when themes settings is requested */
+  onThemesSettings?: () => void;
 }
 
 // =============================================================================
@@ -178,6 +180,7 @@ export function ChatControlBox({
   placeholder,
   onNewChat,
   onSynthesize,
+  onThemesSettings,
 }: ChatControlBoxProps) {
   // =========================================================================
   // STATE MANAGEMENT
@@ -809,7 +812,14 @@ export function ChatControlBox({
                     <span className="text-sm">Categories Setting</span>
                   </button>
                   <button
-                    onClick={() => { toast.info('Chat theme settings coming soon'); setShowSettings(false); }}
+                    onClick={() => { 
+                      if (onThemesSettings) {
+                        onThemesSettings();
+                      } else {
+                        toast.info('Chat theme settings coming soon');
+                      }
+                      setShowSettings(false); 
+                    }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                   >
                     <Palette className="h-4 w-4" />

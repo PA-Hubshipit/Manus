@@ -351,3 +351,9 @@
 - [x] Replace toast.info with modal open handler
 - [x] Add onThemesSettings prop to ChatFooter component
 - [x] Connect ChatFooter's Chat Theme button to ThemesSettingsModal in FloatingChatWindow
+
+## ChatControlBox Theme Settings Fix
+- [x] Add onThemesSettings prop to ChatControlBox component
+- [x] Update Chat Theme button in ChatControlBox to call onThemesSettings callback
+- [x] Update FloatingChatWindow to pass onThemesSettings to ChatControlBox
+- [x] Test switching from Modern to Classic template
