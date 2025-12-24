@@ -365,3 +365,29 @@
 - [x] Pass currentTemplate from FloatingChatWindow to ChatControlBox
 - [x] Update button colors for Modern template (cyan instead of default)
 - [x] Test visual difference between Classic and Modern templates
+
+
+## ChatControlBox Redesign (Ultra-Compact Dark Mode)
+- [ ] Create unified rectangular container with rounded corners and subtle gray border
+- [ ] Remove horizontal separator line between rows
+- [ ] Design top row with tiny minimalist icons: menu, plus, blue pill "0 Models" button, AI head icon, gear, floppy disk, Presets button
+- [ ] Add sci-fi humanoid AI head icon with glowing blue eyes (Synthesizer replacement)
+- [ ] Make "0 Models" button a small blue pill with solid fill
+- [ ] Add slim light-gray rounded input field below with extremely tight vertical spacing
+- [ ] Input field contains: paperclip icon, placeholder text, microphone icon
+- [ ] Ensure high-density compact layout with minimal padding
+- [ ] Test on mobile devices for responsiveness
+
+
+## ChatControlBox Redesign (User Request - Dec 24)
+- [x] Redesign ChatControlBox to match reference design
+- [x] Dark gray container background (bg-zinc-800)
+- [x] Blue solid pill button for Models
+- [x] Light gray input bar with rounded pill shape
+- [x] AI Bot icon for synthesis
+- [x] Floppy disk save icon
+- [x] Gear settings icon
+- [x] Gray Presets button
+- [x] No horizontal separator between rows
+- [x] Ultra-compact spacing
+- [x] Update test for synthesizer button behavior change

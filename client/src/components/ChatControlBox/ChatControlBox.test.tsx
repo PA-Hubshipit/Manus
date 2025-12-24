@@ -193,10 +193,12 @@ describe('ChatControlBox', () => {
   });
 
   describe('Synthesizer Button', () => {
-    it('hides synthesizer when no models selected', () => {
+    it('shows synthesizer as disabled when no models selected', () => {
       render(<ChatControlBox {...defaultProps} selectedModels={[]} />);
       
-      expect(screen.queryByTitle('Generate Synthesis')).not.toBeInTheDocument();
+      const synthButton = screen.getByTitle('Generate Synthesis');
+      expect(synthButton).toBeInTheDocument();
+      expect(synthButton).toBeDisabled();
     });
 
     it('shows synthesizer when models are selected', () => {

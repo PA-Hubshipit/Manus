@@ -7,41 +7,31 @@ import React from 'react';
  * A self-contained chat control component with all built-in behaviors.
  * Drop this component anywhere to get a fully functional chat control interface.
  * 
+ * DESIGN: Ultra-compact dark mode with:
+ * - Unified rectangular container with rounded corners and subtle gray border
+ * - NO horizontal separator between rows
+ * - Top row: tiny icons (menu, plus, blue pill "0 Models", AI head, gear, floppy disk, Presets)
+ * - Bottom row: slim light-gray rounded input field with paperclip, placeholder, microphone
+ * - Extremely tight vertical spacing
+ * 
  * FRAMEWORK COMPLIANCE:
  * - Z_INDEX_FRAMEWORK: Uses Z_CLASS constants for all layering
  * - RESPONSIVENESS_FRAMEWORK: Mobile-first touch event handling
  * - TECHNICAL_FRAMEWORK: Component design patterns (Section 16)
  * 
- * FEATURES:
- * - Control buttons: Menu, New Chat, Models, Synthesizer, Settings, Save, Presets
- * - Message input: Paperclip, Connector, Auto-growing textarea, Voice input
- * - Built-in modals: ModelSelector, PresetsPanel, SettingsMenu, ConnectorsStore
- * - localStorage persistence for conversations and presets
- * 
  * @example
- * // Basic usage
  * <ChatControlBox
  *   messages={messages}
  *   selectedModels={models}
  *   onSendMessage={handleSend}
  *   onModelsChange={setModels}
- * />
- * 
- * // With customization
- * <ChatControlBox
- *   messages={messages}
- *   selectedModels={models}
- *   onSendMessage={handleSend}
- *   onModelsChange={setModels}
- *   hideConnectors={true}
- *   hideSynthesizer={true}
  * />
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
-  Menu, Plus, Settings, Save, Paperclip, Send, Sparkles, 
+  Menu, Plus, Settings, Save, Paperclip, Send, Bot,
   Edit, Trash2, BarChart, MessageSquare, Archive, Download, 
   X, Image as ImageIcon, Zap, Mic, Plug, FolderOpen, Sun, Moon, Globe, Palette 
 } from 'lucide-react';
@@ -186,8 +176,6 @@ export function ChatControlBox({
   onThemesSettings,
   template,
 }: ChatControlBoxProps) {
-  // Determine if using modern (cyan) styling
-  const isModernTemplate = template?.accentColor === 'cyan';
   // =========================================================================
   // STATE MANAGEMENT
   // =========================================================================
@@ -293,163 +281,60 @@ export function ChatControlBox({
   }, []);
 
   // =========================================================================
-  // TEXTAREA HANDLING
+  // HANDLERS
   // =========================================================================
   
   const adjustTextareaHeight = useCallback(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '40px';
-      requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          const scrollHeight = textareaRef.current.scrollHeight;
-          textareaRef.current.style.height = `${Math.min(scrollHeight, 200)}px`;
-          textareaRef.current.style.overflowY = scrollHeight > 200 ? 'auto' : 'hidden';
-        }
-      });
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = '36px';
+      const scrollHeight = textarea.scrollHeight;
+      const maxHeight = 120;
+      const newHeight = Math.min(scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
+      textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
     }
   }, []);
-
-  // =========================================================================
-  // MESSAGE HANDLING
-  // =========================================================================
   
   const handleSend = useCallback(() => {
-    if (!inputMessage.trim() || selectedModels.length === 0) return;
+    if (!inputMessage.trim() || selectedModels.length === 0 || isLoading) return;
     onSendMessage(inputMessage.trim(), attachments);
     setInputMessage('');
     setAttachments([]);
-  }, [inputMessage, selectedModels, attachments, onSendMessage]);
-
-  // =========================================================================
-  // FILE HANDLING
-  // =========================================================================
+  }, [inputMessage, selectedModels, isLoading, attachments, onSendMessage]);
   
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      const newAttachments: Attachment[] = files.map(file => ({
+    const files = e.target.files;
+    if (!files) return;
+    
+    const newAttachments: Attachment[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      newAttachments.push({
         name: file.name,
         type: file.type,
         size: file.size,
         file
-      }));
-      setAttachments(prev => [...prev, ...newAttachments]);
-      toast.success(`${files.length} file(s) attached`);
+      });
     }
+    setAttachments(prev => [...prev, ...newAttachments]);
+    toast.success(`${newAttachments.length} file(s) attached`);
     e.target.value = '';
   }, []);
   
   const removeAttachment = useCallback((index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   }, []);
-
-  // =========================================================================
-  // VOICE INPUT HANDLING
-  // =========================================================================
   
-  const handleVoiceInput = useCallback(() => {
-    if (isListening) {
-      setIsListening(false);
-      if ((window as any).recognition) {
-        (window as any).recognition.stop();
-      }
-      return;
-    }
-    
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(() => {
-          const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-          const recognition = new SpeechRecognition();
-          (window as any).recognition = recognition;
-          
-          recognition.continuous = false;
-          recognition.interimResults = false;
-          recognition.lang = navigator.language || 'en-US';
-          
-          recognition.onstart = () => {
-            setIsListening(true);
-            toast.info('Listening...');
-          };
-          
-          recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            const currentInput = inputMessageRef.current;
-            setInputMessage(currentInput + (currentInput ? ' ' : '') + transcript);
-            setIsListening(false);
-          };
-          
-          recognition.onerror = (event: any) => {
-            console.error('Speech recognition error', event.error);
-            setIsListening(false);
-            if (event.error === 'not-allowed') {
-              toast.error('Microphone access denied. Please check browser settings.');
-            } else if (event.error === 'no-speech') {
-              toast.info('No speech detected');
-            } else {
-              toast.error(`Voice input failed: ${event.error}`);
-            }
-          };
-          
-          recognition.onend = () => {
-            setIsListening(false);
-          };
-          
-          try {
-            recognition.start();
-          } catch (e) {
-            console.error(e);
-            toast.error('Failed to start voice input');
-          }
-        })
-        .catch((err) => {
-          console.error('Microphone permission denied:', err);
-          toast.error('Microphone permission denied. Please allow access in browser settings.');
-        });
+  const handleNewChat = useCallback(() => {
+    if (onNewChat) {
+      onNewChat();
     } else {
-      toast.error('Speech recognition not supported in this browser');
+      onMessagesChange([]);
+      onTitleChange?.('New Chat');
     }
-  }, [isListening]);
-
-  // =========================================================================
-  // CONVERSATION HANDLING
-  // =========================================================================
-  
-  const handleSaveConversation = useCallback(() => {
-    if (messages.length === 0) {
-      toast.error('No messages to save');
-      return;
-    }
-    
-    const convoId = `conversation:${Date.now()}`;
-    const convoData: SavedConversation = {
-      id: convoId,
-      title: conversationTitle,
-      timestamp: new Date().toISOString(),
-      messages: messages.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp
-      })),
-      models: selectedModels
-    };
-    
-    try {
-      localStorage.setItem(convoId, JSON.stringify(convoData));
-      loadConversationsFromStorage();
-      toast.success('Conversation saved!');
-    } catch (error) {
-      console.error('Save error:', error);
-      toast.error('Failed to save conversation');
-    }
-  }, [messages, conversationTitle, selectedModels, loadConversationsFromStorage]);
-  
-  const handleLoadConversation = useCallback((convo: SavedConversation) => {
-    onMessagesChange(convo.messages);
-    onModelsChange(convo.models);
-    onTitleChange?.(convo.title);
     setShowFooterMenu(false);
-    toast.success('Conversation loaded');
-  }, [onMessagesChange, onModelsChange, onTitleChange]);
+  }, [onNewChat, onMessagesChange, onTitleChange]);
   
   const handleClearChat = useCallback(() => {
     if (confirm('Are you sure you want to clear this chat?')) {
@@ -466,18 +351,71 @@ export function ChatControlBox({
     }
   }, [onMessagesChange, onTitleChange]);
   
-  const handleNewChat = useCallback(() => {
-    onMessagesChange([]);
-    onTitleChange?.('New Chat');
-    setAttachments([]);
-    setInputMessage('');
-    onNewChat?.();
+  const handleSaveConversation = useCallback(() => {
+    if (messages.length === 0) {
+      toast.error('No messages to save');
+      return;
+    }
+    
+    const convoId = `conversation:${Date.now()}`;
+    const convoData: SavedConversation = {
+      id: convoId,
+      title: conversationTitle,
+      timestamp: new Date().toISOString(),
+      messages: messages.map(m => ({
+        ...m,
+        timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp)
+      })),
+      models: selectedModels
+    };
+    
+    try {
+      localStorage.setItem(convoId, JSON.stringify(convoData));
+      loadConversationsFromStorage();
+      toast.success('Conversation saved');
+    } catch (error) {
+      toast.error('Failed to save conversation');
+    }
+  }, [messages, conversationTitle, selectedModels, loadConversationsFromStorage]);
+  
+  const handleLoadConversation = useCallback((convo: SavedConversation) => {
+    onMessagesChange(convo.messages);
+    onModelsChange(convo.models);
+    onTitleChange?.(convo.title);
     setShowFooterMenu(false);
-  }, [onMessagesChange, onTitleChange, onNewChat]);
-
-  // =========================================================================
-  // PRESET HANDLING
-  // =========================================================================
+    toast.success('Conversation loaded');
+  }, [onMessagesChange, onModelsChange, onTitleChange]);
+  
+  const handleExportData = useCallback(() => {
+    if (messages.length === 0) {
+      toast.error('No messages to export');
+      return;
+    }
+    
+    const exportData = {
+      title: conversationTitle,
+      messages,
+      selectedModels,
+      timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-export-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Data exported');
+  }, [messages, conversationTitle, selectedModels]);
+  
+  const handleToggleModel = useCallback((providerKey: string, model: string) => {
+    const modelKey = `${providerKey}:${model}`;
+    const newModels = selectedModels.includes(modelKey)
+      ? selectedModels.filter(m => m !== modelKey)
+      : [...selectedModels, modelKey];
+    onModelsChange(newModels);
+  }, [selectedModels, onModelsChange]);
   
   const handleApplyPreset = useCallback((models: string[]) => {
     onModelsChange(models);
@@ -485,30 +423,19 @@ export function ChatControlBox({
     toast.success('Preset applied');
   }, [onModelsChange]);
   
-  const handleToggleModel = useCallback((provider: string, model: string) => {
-    const modelKey = `${provider}:${model}`;
-    if (selectedModels.includes(modelKey)) {
-      onModelsChange(selectedModels.filter(m => m !== modelKey));
-    } else {
-      onModelsChange([...selectedModels, modelKey]);
-    }
-  }, [selectedModels, onModelsChange]);
-  
-  const handleEditQuickPreset = useCallback((id: string) => {
-    const preset = quickPresets.find(p => p.id === id);
+  const handleEditQuickPreset = useCallback((presetId: string) => {
+    const preset = quickPresets.find(p => p.id === presetId);
     if (preset) {
       setEditingPreset(preset);
       setShowPresetEditor(true);
     }
   }, [quickPresets]);
   
-  const handleDeleteQuickPreset = useCallback((id: string) => {
-    if (confirm('Are you sure you want to delete this preset?')) {
-      const updated = quickPresets.filter(p => p.id !== id);
-      setQuickPresets(updated);
-      saveQuickPresets(updated);
-      toast.success('Preset deleted');
-    }
+  const handleDeleteQuickPreset = useCallback((presetId: string) => {
+    const updated = quickPresets.filter(p => p.id !== presetId);
+    setQuickPresets(updated);
+    saveQuickPresets(updated);
+    toast.success('Preset removed from Quick Presets');
   }, [quickPresets]);
   
   const handleSavePreset = useCallback((preset: QuickPreset) => {
@@ -524,60 +451,44 @@ export function ChatControlBox({
     setEditingPreset(null);
     toast.success(editingPreset ? 'Preset updated' : 'Preset created');
   }, [quickPresets, editingPreset]);
-
-  // =========================================================================
-  // EXPORT HANDLING
-  // =========================================================================
   
-  const handleExportData = useCallback(() => {
-    if (messages.length === 0) {
-      toast.error('No messages to export');
+  const handleVoiceInput = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Speech recognition not supported in this browser');
       return;
     }
     
-    const exportData = {
-      title: conversationTitle,
-      messages,
-      selectedModels,
-      timestamp: new Date().toISOString(),
-      totalMessages: messages.length
-    };
-    
-    try {
-      const jsonString = JSON.stringify(exportData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `chat-export-${Date.now()}.json`;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-      
-      toast.success('Conversation exported!');
-    } catch (error) {
-      toast.error('Export failed');
+    if (isListening) {
+      setIsListening(false);
+      return;
     }
-  }, [messages, conversationTitle, selectedModels]);
-
-  // =========================================================================
-  // ANALYTICS
-  // =========================================================================
-  
-  const getAnalytics = useCallback(() => {
-    const aiMessages = messages.filter(m => m.type === 'ai');
-    const avgConfidence = aiMessages.reduce((sum, m) => sum + (m.confidence || 0), 0) / (aiMessages.length || 1);
-    const avgResponseTime = aiMessages.reduce((sum, m) => sum + (m.responseTime || 0), 0) / (aiMessages.length || 1);
-    const ratedMessages = aiMessages.filter(m => m.rating !== null);
-    const avgRating = ratedMessages.reduce((sum, m) => sum + (m.rating === 1 ? 5 : 1), 0) / (ratedMessages.length || 1);
-    return { avgConfidence, avgResponseTime, avgRating, totalMessages: messages.length };
-  }, [messages]);
+    
+    // Request microphone permission first
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = () => setIsListening(true);
+        recognition.onend = () => setIsListening(false);
+        recognition.onerror = (e: any) => {
+          setIsListening(false);
+          toast.error(`Speech recognition error: ${e.error}`);
+        };
+        recognition.onresult = (e: any) => {
+          const transcript = e.results[0][0].transcript;
+          setInputMessage(prev => prev + (prev ? ' ' : '') + transcript);
+        };
+        
+        recognition.start();
+      })
+      .catch(() => {
+        toast.error('Microphone access denied');
+      });
+  }, [isListening]);
 
   // =========================================================================
   // RENDER
@@ -587,23 +498,8 @@ export function ChatControlBox({
     ? 'Select at least one AI model to send a message' 
     : 'Type your message...';
 
-  // Container classes based on template
-  const containerClasses = isModernTemplate
-    ? 'border-t border-cyan-700/50 bg-gradient-to-r from-cyan-950/80 to-slate-900/90 rounded-b-lg'
-    : 'border-t border-border bg-card rounded-b-lg';
-
-  // Button classes based on template
-  const buttonClasses = isModernTemplate
-    ? 'border-cyan-700/50 hover:bg-cyan-900/50 text-cyan-300'
-    : '';
-
-  // Send button classes based on template
-  const sendButtonClasses = isModernTemplate
-    ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-    : 'bg-primary hover:bg-primary/90 text-primary-foreground';
-
   return (
-    <div className={containerClasses}>
+    <div className="bg-zinc-800 rounded-2xl border border-zinc-700/50 mx-2 mb-2">
       {/* Analytics Panel */}
       {showAnalytics && (
         <AnalyticsPanel 
@@ -636,89 +532,86 @@ export function ChatControlBox({
         />
       )}
       
-      <div className="p-2 md:p-3 space-y-2">
+      {/* Main Content - No separator between rows */}
+      <div className="p-3 space-y-2">
         {/* Attachments Preview */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {attachments.map((att, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-muted rounded px-2 py-1 text-xs">
+              <div key={idx} className="flex items-center gap-2 bg-zinc-700 rounded px-2 py-1 text-xs text-zinc-300">
                 {att.type.startsWith('image/') ? <ImageIcon className="h-3 w-3" /> : <Paperclip className="h-3 w-3" />}
                 <span className="truncate max-w-[100px]">{att.name}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-4 w-4 p-0"
+                <button
+                  className="h-4 w-4 p-0 hover:text-white"
                   onClick={() => removeAttachment(idx)}
                 >
                   <X className="h-3 w-3" />
-                </Button>
+                </button>
               </div>
             ))}
           </div>
         )}
         
-        {/* Control Buttons Row */}
-        <div className="flex items-center gap-1 md:gap-2 justify-center flex-wrap">
+        {/* Control Buttons Row - Tiny minimalist icons */}
+        <div className="flex items-center gap-1.5 justify-center">
           {/* Hamburger Menu */}
           <div className="relative">
-            <Button
-              variant="outline"
-              size="icon"
+            <button
               onClick={() => setShowFooterMenu(!showFooterMenu)}
-              className={`h-7 w-7 shrink-0 ${buttonClasses}`}
+              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
               title="Menu"
             >
-              <Menu className="h-3.5 w-3.5" />
-            </Button>
+              <Menu className="h-5 w-5" />
+            </button>
             
             {showFooterMenu && (
               <>
                 <div 
-                  className={`fixed inset-0 ${Z_CLASS.DROPDOWN}`}
+                  className="fixed inset-0"
                   style={{ zIndex: Z_VALUES.DROPDOWN - 1 }}
                   onClick={() => setShowFooterMenu(false)}
                 />
                 <div 
-                  className={`absolute bottom-full left-0 mb-2 w-72 bg-card rounded-lg shadow-2xl border border-border overflow-hidden ${Z_CLASS.DROPDOWN}`}
+                  className={`absolute bottom-full left-0 mb-2 w-72 bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden ${Z_CLASS.DROPDOWN}`}
                 >
                   <button
                     onClick={handleNewChat}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Plus className="h-4 w-4" />
                     <span className="text-sm">New Chat</span>
                   </button>
                   <button
                     onClick={() => { setShowRenameDialog(true); setShowFooterMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Edit className="h-4 w-4" />
                     <span className="text-sm">Rename Chat</span>
                   </button>
                   <button
                     onClick={() => { handleSaveConversation(); setShowFooterMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Save className="h-4 w-4" />
                     <span className="text-sm">Save Chat</span>
                   </button>
                   <button
                     onClick={() => { handleClearChat(); setShowFooterMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="text-sm">Clear Chat</span>
                   </button>
                   <button
                     onClick={() => { setShowAnalytics(true); setShowFooterMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <BarChart className="h-4 w-4" />
                     <span className="text-sm">Show Analytics</span>
                   </button>
                   <button
                     onClick={() => { handleDeleteChat(); setShowFooterMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left text-red-500"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-red-400"
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="text-sm">Delete Chat</span>
@@ -726,13 +619,13 @@ export function ChatControlBox({
                   
                   {/* Recent Conversations */}
                   {savedConversations.length > 0 && (
-                    <div className="border-t border-border">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">RECENT CONVERSATIONS</div>
+                    <div className="border-t border-zinc-700">
+                      <div className="px-4 py-2 text-xs font-semibold text-zinc-500">RECENT CONVERSATIONS</div>
                       {savedConversations.slice(0, 3).map((convo) => (
                         <button
                           key={convo.id}
                           onClick={() => handleLoadConversation(convo)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                         >
                           <MessageSquare className="h-4 w-4" />
                           <span className="text-sm truncate">{convo.title}</span>
@@ -740,14 +633,14 @@ export function ChatControlBox({
                       ))}
                       <button
                         onClick={() => { setShowSavedConversations(true); setShowFooterMenu(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                       >
                         <MessageSquare className="h-4 w-4" />
                         <span className="text-sm">View All Saved</span>
                       </button>
                       <button
                         onClick={() => { toast.info(`Archive (${archivedConversations.length})`); setShowFooterMenu(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                       >
                         <Archive className="h-4 w-4" />
                         <span className="text-sm">Archive ({archivedConversations.length})</span>
@@ -760,50 +653,47 @@ export function ChatControlBox({
           </div>
           
           {/* Plus Button */}
-          <Button
-            variant="outline"
-            size="icon"
+          <button
             onClick={handleNewChat}
-            className={`h-7 w-7 shrink-0 ${buttonClasses}`}
+            className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
             title="New Chat"
           >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
+            <Plus className="h-5 w-5" />
+          </button>
           
-          {/* Models Button */}
-          <Button
-            variant="outline"
-            size="sm"
+          {/* Models Button - Blue Pill with solid fill */}
+          <button
             onClick={() => { setShowModelsPanel(!showModelsPanel); setShowPresetsPanel(false); }}
-            className={`text-[10px] h-7 px-2 shrink-0 ${buttonClasses}`}
+            className="h-8 px-4 bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium rounded-full transition-colors"
           >
             {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
-          </Button>
+          </button>
           
-          {/* Synthesizer Icon */}
-          {!hideSynthesizer && selectedModels.length > 0 && (
-            <Button
-              variant="outline"
-              size="icon"
+          {/* AI Head Icon (Synthesizer) - Sci-fi humanoid with glowing blue eyes */}
+          {!hideSynthesizer && (
+            <button
               onClick={onSynthesize}
-              className={`h-7 w-7 shrink-0 ${buttonClasses}`}
+              className={`h-8 w-8 flex items-center justify-center transition-colors ${
+                selectedModels.length > 0 
+                  ? 'text-blue-400 hover:text-blue-300' 
+                  : 'text-zinc-500'
+              }`}
               title="Generate Synthesis"
+              disabled={selectedModels.length === 0}
             >
-              <Sparkles className="h-3.5 w-3.5" />
-            </Button>
+              <Bot className="h-5 w-5" />
+            </button>
           )}
           
-          {/* Settings Icon */}
+          {/* Settings Icon (Gear) */}
           <div className="relative">
-            <Button
-              variant="outline"
-              size="icon"
+            <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`h-7 w-7 shrink-0 ${buttonClasses}`}
+              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
               title="Settings"
             >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
+              <Settings className="h-5 w-5" />
+            </button>
             
             {showSettings && (
               <>
@@ -813,21 +703,21 @@ export function ChatControlBox({
                   onClick={() => setShowSettings(false)}
                 />
                 <div 
-                  className={`absolute bottom-full right-0 mb-2 w-56 bg-card rounded-lg shadow-2xl border border-border overflow-hidden ${Z_CLASS.DROPDOWN}`}
+                  className={`absolute bottom-full right-0 mb-2 w-56 bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden ${Z_CLASS.DROPDOWN}`}
                 >
-                  <div className="px-4 py-3 border-b border-border">
-                    <h3 className="text-sm font-semibold">Settings</h3>
+                  <div className="px-4 py-3 border-b border-zinc-700">
+                    <h3 className="text-sm font-semibold text-zinc-200">Settings</h3>
                   </div>
                   <button
                     onClick={() => { setShowPresetsManagement(true); setShowSettings(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Zap className="h-4 w-4" />
                     <span className="text-sm">Presets Setting</span>
                   </button>
                   <button
                     onClick={() => { setShowCategoriesSettings(true); setShowSettings(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <FolderOpen className="h-4 w-4" />
                     <span className="text-sm">Categories Setting</span>
@@ -841,21 +731,21 @@ export function ChatControlBox({
                       }
                       setShowSettings(false); 
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Palette className="h-4 w-4" />
                     <span className="text-sm">Chat Theme</span>
                   </button>
                   <button
                     onClick={() => { toast.info('Language settings coming soon'); setShowSettings(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Globe className="h-4 w-4" />
                     <span className="text-sm">Language</span>
                   </button>
                   <button
                     onClick={() => { handleExportData(); setShowSettings(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700 transition-colors text-left text-zinc-300"
                   >
                     <Download className="h-4 w-4" />
                     <span className="text-sm">Export Data</span>
@@ -865,31 +755,31 @@ export function ChatControlBox({
             )}
           </div>
           
-          {/* Save Icon */}
-          <Button
-            variant="outline"
-            size="icon"
+          {/* Save Icon (Floppy Disk) */}
+          <button
             onClick={handleSaveConversation}
             disabled={messages.length === 0}
+            className={`h-8 w-8 flex items-center justify-center transition-colors ${
+              messages.length === 0 
+                ? 'text-zinc-600 cursor-not-allowed' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
             title="Save Conversation"
-            className={`h-7 w-7 shrink-0 ${buttonClasses}`}
           >
-            <Save className="h-3.5 w-3.5" />
-          </Button>
+            <Save className="h-5 w-5" />
+          </button>
           
-          {/* Presets Button */}
-          <Button
-            variant="outline"
-            size="sm"
+          {/* Presets Button - Light background pill */}
+          <button
             onClick={() => { setShowPresetsPanel(!showPresetsPanel); setShowModelsPanel(false); }}
-            className={`text-[10px] h-7 px-2 shrink-0 ${buttonClasses}`}
+            className="h-8 px-4 bg-zinc-600 hover:bg-zinc-500 text-zinc-200 text-sm font-medium rounded-full transition-colors"
           >
             Presets
-          </Button>
+          </button>
         </div>
         
-        {/* Message Input Row */}
-        <div className="flex gap-2 items-end">
+        {/* Message Input Row - Slim light-gray rounded input field */}
+        <div className="relative">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -899,69 +789,60 @@ export function ChatControlBox({
             onChange={handleFileUpload}
           />
           
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-            title="Attach files"
-            className={`shrink-0 h-10 w-10 ${buttonClasses}`}
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
-          
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
+          <div className="flex items-center gap-2 bg-zinc-200 rounded-full px-3 py-2">
+            {/* Paperclip Icon */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="h-6 w-6 flex items-center justify-center text-zinc-500 hover:text-zinc-700 transition-colors"
+              title="Attach files"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            
+            {/* Connectors Icon */}
+            {!hideConnectors && (
+              <button
+                onClick={() => setShowConnectorsStore(true)}
+                className={`h-6 w-6 flex items-center justify-center transition-colors ${
+                  showConnectorsStore ? 'text-blue-500' : 'text-zinc-500 hover:text-zinc-700'
+                }`}
+                title="Connectors Store"
+              >
+                <Plug className="h-4 w-4" />
+              </button>
+            )}
+            
+            {/* Text Input */}
+            <input
+              type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder={placeholder || defaultPlaceholder}
               disabled={selectedModels.length === 0}
-              rows={1}
-              className={`w-full pl-3 pr-16 py-2.5 rounded-md border text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-                isModernTemplate 
-                  ? 'border-cyan-700/50 bg-slate-900/80 text-cyan-100 placeholder:text-cyan-400/50 focus-visible:ring-cyan-500' 
-                  : 'border-input bg-background focus-visible:ring-ring'
-              }`}
-              style={{ lineHeight: '1.5', height: '40px', minHeight: '40px', maxHeight: '200px', overflowY: 'hidden' }}
+              className="flex-1 bg-transparent text-zinc-800 placeholder:text-zinc-500 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
             
-            <div className="absolute right-2 bottom-1.5 flex items-center gap-1">
-              {/* Voice Input */}
-              {!hideVoiceInput && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`h-7 w-7 ${isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground hover:text-foreground'}`}
-                  onClick={handleVoiceInput}
-                  title="Voice Input"
-                >
-                  <Mic className="h-4 w-4" />
-                </Button>
-              )}
-              
-              {/* Connectors */}
-              {!hideConnectors && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`h-7 w-7 ${showConnectorsStore ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                  onClick={() => setShowConnectorsStore(true)}
-                  title="Connectors Store"
-                >
-                  <Plug className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            {/* Microphone Icon */}
+            {!hideVoiceInput && (
+              <button
+                onClick={handleVoiceInput}
+                className={`h-6 w-6 flex items-center justify-center transition-colors ${
+                  isListening 
+                    ? 'text-red-500 animate-pulse' 
+                    : 'text-zinc-500 hover:text-zinc-700'
+                }`}
+                title="Voice Input"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          
-          <Button
-            onClick={handleSend}
-            disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
-            size="icon"
-            className={`shrink-0 h-10 w-10 ${sendButtonClasses}`}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
         </div>
       </div>
       
