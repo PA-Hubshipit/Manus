@@ -902,8 +902,11 @@ export function FloatingChatWindow({
   // WINDOW STYLES
   // ============================================
   
+  // Header height: ~48px on mobile (py-2 + button), ~56px on desktop (py-3 + button)
+  const HEADER_HEIGHT = 56;
+  
   const windowStyle: React.CSSProperties = isMaximized
-    ? { top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', borderRadius: 0 }
+    ? { top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0, width: '100%', height: `calc(100% - ${HEADER_HEIGHT}px)`, borderRadius: 0 }
     : { top: position.y, left: position.x, width: `min(${windowSize.width}px, 90vw)`, height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)` };
   
   if (isMinimized) return null;

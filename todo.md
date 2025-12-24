@@ -334,3 +334,4 @@
 
 ## Bug Fix - Theme Label in Hamburger Menu
 - [x] Fix "Light Mode/Dark Mode" label to "Theme" in hamburger menu (FMF violation: uses reserved term "Mode")
+- [x] Fix: Mobile maximized chat window covers app header - should start below header
