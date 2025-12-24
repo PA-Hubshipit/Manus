@@ -391,3 +391,10 @@
 - [x] No horizontal separator between rows
 - [x] Ultra-compact spacing
 - [x] Update test for synthesizer button behavior change
+
+
+## ChatControlBox Text Box Fix (Dec 24)
+- [x] Fix text box not responding to taps on mobile
+- [x] Copy working message input from ChatFooter (Classic theme)
+- [x] Ensure mobile virtual keyboard shows correctly
+- [x] Test on mobile device

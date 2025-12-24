@@ -779,7 +779,7 @@ export function ChatControlBox({
         </div>
         
         {/* Message Input Row - Slim light-gray rounded input field */}
-        <div className="relative">
+        <div className="flex items-center gap-2">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -789,32 +789,19 @@ export function ChatControlBox({
             onChange={handleFileUpload}
           />
           
-          <div className="flex items-center gap-2 bg-zinc-200 rounded-full px-3 py-2">
-            {/* Paperclip Icon */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="h-6 w-6 flex items-center justify-center text-zinc-500 hover:text-zinc-700 transition-colors"
-              title="Attach files"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
-            
-            {/* Connectors Icon */}
-            {!hideConnectors && (
-              <button
-                onClick={() => setShowConnectorsStore(true)}
-                className={`h-6 w-6 flex items-center justify-center transition-colors ${
-                  showConnectorsStore ? 'text-blue-500' : 'text-zinc-500 hover:text-zinc-700'
-                }`}
-                title="Connectors Store"
-              >
-                <Plug className="h-4 w-4" />
-              </button>
-            )}
-            
-            {/* Text Input */}
-            <input
-              type="text"
+          {/* Paperclip Button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
+            title="Attach files"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          
+          {/* Input Container */}
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => {
@@ -825,24 +812,50 @@ export function ChatControlBox({
               }}
               placeholder={placeholder || defaultPlaceholder}
               disabled={selectedModels.length === 0}
-              className="flex-1 bg-transparent text-zinc-800 placeholder:text-zinc-500 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              rows={1}
+              className="w-full pl-3 pr-16 py-2.5 rounded-full bg-zinc-200 text-zinc-800 placeholder:text-zinc-500 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ lineHeight: '1.5', height: '40px', minHeight: '40px', maxHeight: '120px', overflowY: 'hidden' }}
             />
-            
-            {/* Microphone Icon */}
-            {!hideVoiceInput && (
-              <button
-                onClick={handleVoiceInput}
-                className={`h-6 w-6 flex items-center justify-center transition-colors ${
-                  isListening 
-                    ? 'text-red-500 animate-pulse' 
-                    : 'text-zinc-500 hover:text-zinc-700'
-                }`}
-                title="Voice Input"
-              >
-                <Mic className="h-4 w-4" />
-              </button>
-            )}
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {/* Microphone Icon */}
+              {!hideVoiceInput && (
+                <button
+                  onClick={handleVoiceInput}
+                  className={`h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
+                    isListening 
+                      ? 'text-red-500 animate-pulse' 
+                      : 'text-zinc-500 hover:text-zinc-700'
+                  }`}
+                  title="Voice Input"
+                >
+                  <Mic className="h-4 w-4" />
+                </button>
+              )}
+              
+              {/* Connectors Icon */}
+              {!hideConnectors && (
+                <button
+                  onClick={() => setShowConnectorsStore(true)}
+                  className={`h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
+                    showConnectorsStore ? 'text-blue-500' : 'text-zinc-500 hover:text-zinc-700'
+                  }`}
+                  title="Connectors Store"
+                >
+                  <Plug className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
+          
+          {/* Send Button */}
+          <button
+            onClick={handleSend}
+            disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
+            className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send message"
+          >
+            <Send className="h-4 w-4" />
+          </button>
         </div>
       </div>
       
