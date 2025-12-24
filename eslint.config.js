@@ -3,13 +3,20 @@ import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import customRules from './eslint-rules/index.js';
 
 /**
  * ESLint Configuration for Multi-AI Chat
  * =======================================
  * 
- * This configuration includes a custom rule to prevent arbitrary z-index usage.
- * All z-index values should come from the centralized z-index system.
+ * This configuration includes custom rules to prevent z-index bugs:
+ * 
+ * 1. no-restricted-syntax: Warns on arbitrary z-index values (z-[999], z-50, etc.)
+ * 2. custom/no-template-in-string: Errors on template literals inside regular strings
+ *    - Catches bugs like: "z-[${Z_INDEX.DROPDOWN}]" (should use backticks)
+ *    - Suggests using Z_CLASS constants instead
+ * 
+ * All z-index values should come from the centralized z-index system in @/lib/z-index.ts
  */
 
 export default [
@@ -86,6 +93,7 @@ export default [
       '@typescript-eslint': tseslint,
       'react': react,
       'react-hooks': reactHooks,
+      'custom': customRules,
     },
     rules: {
       // TypeScript rules
@@ -121,6 +129,10 @@ export default [
           message: '⚠️ Inline zIndex detected! Use getZIndexStyle() from @/lib/z-index.ts instead.',
         },
       ],
+      
+      // Custom rule: Detect template literals inside regular strings
+      // This catches the exact bug that caused the Quick Presets dropdown to break
+      'custom/no-template-in-string': 'error',
     },
     settings: {
       react: {
@@ -138,6 +150,7 @@ export default [
       '*.config.js',
       '*.config.ts',
       'drizzle/**',
+      'eslint-rules/**', // Don't lint the ESLint rules themselves
     ],
   },
 ];

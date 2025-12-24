@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+
+# Run z-index validation tests before committing
+echo "🔍 Running z-index validation tests..."
+pnpm test -- --run --grep "z-index" --passWithNoTests
+
+# If tests fail, abort the commit
+if [ $? -ne 0 ]; then
+  echo "❌ Z-index tests failed. Please fix the issues before committing."
+  exit 1
+fi
+
+# Run TypeScript type checking
+echo "🔍 Running TypeScript type check..."
+pnpm tsc --noEmit
+
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript errors found. Please fix the issues before committing."
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"
