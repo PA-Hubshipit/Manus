@@ -14,9 +14,10 @@ import {
 } from '@/components/ui/select';
 import { CollapsibleMenuGroup } from '@/components/CollapsibleMenuGroup';
 import { PresetsManagementModal } from '@/components/PresetsManagementModal';
+import { ThemesSettingsModal } from '@/components/ThemesSettingsModal';
 import { 
   Send, Plus, X, Menu, Save, Download, Star, ThumbsUp, ThumbsDown, 
-  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight, Settings, Archive, Edit
+  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight, Settings, Archive, Edit, Palette
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
@@ -101,6 +102,7 @@ export default function Home() {
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [showPresetsManagement, setShowPresetsManagement] = useState(false);
+  const [showThemesSettings, setShowThemesSettings] = useState(false);
   const [defaultModels, setDefaultModels] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1434,11 +1436,12 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => {
-                        toast.info('Chat theme settings coming soon');
+                        setShowThemesSettings(true);
                         setShowSettings(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
                     >
+                      <Palette className="h-4 w-4" />
                       <span className="text-sm">Chat Theme</span>
                     </button>
                     <button
@@ -1666,6 +1669,12 @@ export default function Home() {
           onClose={() => setShowPresetsManagement(false)}
         />
       )}
+
+      {/* Themes Settings Modal */}
+      <ThemesSettingsModal
+        isOpen={showThemesSettings}
+        onClose={() => setShowThemesSettings(false)}
+      />
     </div>
   );
 }

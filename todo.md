@@ -343,3 +343,11 @@
 - [x] Add "Themes" option to wheel settings menu (SettingsMenu.tsx)
 - [x] Wire template selection to FloatingChatWindow
 - [x] Add "Customize" coming soon placeholder in ThemesSettingsModal
+
+## Themes Settings Fix
+- [x] Connect ThemesSettingsModal to Home.tsx settings menu (currently shows toast instead of modal)
+- [x] Add showThemesSettings state to Home.tsx
+- [x] Import ThemesSettingsModal component
+- [x] Replace toast.info with modal open handler
+- [x] Add onThemesSettings prop to ChatFooter component
+- [x] Connect ChatFooter's Chat Theme button to ThemesSettingsModal in FloatingChatWindow

@@ -1424,6 +1424,7 @@ export function FloatingChatWindow({
             onExportData={exportConversation}
             onPresetsSettings={() => setShowPresetsManagement(true)}
             onCategoriesSettings={() => setShowCategoriesSettings(true)}
+            onThemesSettings={() => setShowThemesSettings(true)}
             messagesCount={messages.length}
             attachments={attachments}
             onRemoveAttachment={removeAttachment}

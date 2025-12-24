@@ -41,6 +41,7 @@ interface ChatFooterProps {
   onExportData?: () => void;
   onPresetsSettings?: () => void;
   onCategoriesSettings?: () => void;
+  onThemesSettings?: () => void;
   messagesCount?: number;
   attachments?: Attachment[];
   onRemoveAttachment?: (index: number) => void;
@@ -70,6 +71,7 @@ export function ChatFooter({
   onExportData,
   onPresetsSettings,
   onCategoriesSettings,
+  onThemesSettings,
   messagesCount = 0,
   attachments = [],
   onRemoveAttachment,
@@ -384,7 +386,11 @@ export function ChatFooter({
                   </button>
                   <button
                     onClick={() => {
-                      toast.info('Chat theme settings coming soon');
+                      if (onThemesSettings) {
+                        onThemesSettings();
+                      } else {
+                        toast.info('Chat theme settings coming soon');
+                      }
                       setShowSettings(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left"
