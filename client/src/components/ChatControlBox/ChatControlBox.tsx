@@ -311,11 +311,17 @@ export function ChatControlBox({
   // =========================================================================
   
   const handleSend = useCallback(() => {
-    if (!inputMessage.trim() || selectedModels.length === 0 || isLoading) return;
-    onSendMessage(inputMessage.trim(), attachments);
+    // Use inputMessageRef which is always kept in sync via useEffect
+    const currentMessage = inputMessageRef.current;
+    if (!currentMessage.trim() || selectedModels.length === 0 || isLoading) return;
+    onSendMessage(currentMessage.trim(), attachments);
     setInputMessage('');
     setAttachments([]);
-  }, [inputMessage, selectedModels, isLoading, attachments, onSendMessage]);
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '40px';
+    }
+  }, [selectedModels, isLoading, attachments, onSendMessage]);
   
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

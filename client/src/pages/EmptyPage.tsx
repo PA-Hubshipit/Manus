@@ -6,7 +6,7 @@ import { FloatingChatWindow } from '@/components/FloatingChatWindow';
 import { WindowDock } from '@/components/WindowDock';
 import { WindowLayoutPresets, WindowLayout } from '@/components/WindowLayoutPresets';
 import { ModeMenu } from '@/components/ModeMenu';
-import { Menu, Download, X, Layout, Plus, Sun, Moon } from 'lucide-react';
+import { Menu, X, Layout, Plus, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
@@ -216,16 +216,7 @@ export default function EmptyPage() {
           {/* Mode Selector */}
           <ModeMenu currentMode="empty" onAddChatWindow={addNewChatWindow} />
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => toast.info('No conversation to export')}
-            disabled={true}
-            title="Export to JSON"
-            className="hidden sm:inline-flex"
-          >
-            <Download className="h-5 w-5" />
-          </Button>
+
         </div>
       </div>
 

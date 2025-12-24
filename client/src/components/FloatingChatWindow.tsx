@@ -912,7 +912,7 @@ export function FloatingChatWindow({
   const HEADER_HEIGHT = 56;
   
   const windowStyle: React.CSSProperties = isMaximized
-    ? { top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0, width: '100%', height: `calc(100% - ${HEADER_HEIGHT}px)`, borderRadius: 0 }
+    ? { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', borderRadius: 0 }
     : { top: position.y, left: position.x, width: `min(${windowSize.width}px, 90vw)`, height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)` };
   
   if (isMinimized) return null;
@@ -1388,8 +1388,40 @@ export function FloatingChatWindow({
             selectedModels={selectedModels}
             onModelsChange={setSelectedModels}
             onSendMessage={(text, attachments) => {
-              setInputMessage(text);
-              handleSend();
+              // Create user message directly with the text from ChatControlBox
+              if (!text.trim()) return;
+              
+              if (selectedModels.length === 0) {
+                toast.error('Please select at least one AI model');
+                return;
+              }
+              
+              const userMessage: Message = {
+                id: Date.now(),
+                type: 'user' as const,
+                content: text,
+                timestamp: new Date(),
+              };
+              
+              setMessages(prev => [...prev, userMessage]);
+              setIsLoading(true);
+              
+              // Simulate AI responses
+              setTimeout(() => {
+                const aiResponses: Message[] = selectedModels.map((modelKey, index) => {
+                  const [provider, model] = modelKey.split(':');
+                  return {
+                    id: Date.now() + index + 1,
+                    type: 'ai' as const,
+                    content: `This is a simulated response from ${model}. In a real implementation, this would connect to the ${provider} API.`,
+                    model,
+                    provider,
+                    timestamp: new Date(),
+                  };
+                });
+                setMessages(prev => [...prev, ...aiResponses]);
+                setIsLoading(false);
+              }, 1000);
             }}
             conversationTitle={conversationTitle}
             onTitleChange={(title) => handleRename(title)}
