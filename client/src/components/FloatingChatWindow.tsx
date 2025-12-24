@@ -912,7 +912,7 @@ export function FloatingChatWindow({
   const HEADER_HEIGHT = 56;
   
   const windowStyle: React.CSSProperties = isMaximized
-    ? { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', borderRadius: 0 }
+    ? { position: 'fixed', top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0, width: '100vw', height: `calc(100vh - ${HEADER_HEIGHT}px)`, borderRadius: 0 }
     : { top: position.y, left: position.x, width: `min(${windowSize.width}px, 90vw)`, height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)` };
   
   if (isMinimized) return null;
