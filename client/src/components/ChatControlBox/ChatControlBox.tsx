@@ -14,6 +14,12 @@ import React from 'react';
  * - Bottom row: slim light-gray rounded input field with paperclip, placeholder, microphone
  * - Extremely tight vertical spacing
  * 
+ * MOBILE RESPONSIVE:
+ * - Two-row stacked layout on mobile (< 768px)
+ * - Row 1: Menu, Plus, Models pill, AI head, Gear, Save, Presets
+ * - Row 2: Full-width input with paperclip, connectors, mic icons inside
+ * - Send button hidden on mobile (use Enter key or mic)
+ * 
  * FRAMEWORK COMPLIANCE:
  * - Z_INDEX_FRAMEWORK: Uses Z_CLASS constants for all layering
  * - RESPONSIVENESS_FRAMEWORK: Mobile-first touch event handling
@@ -29,6 +35,7 @@ import React from 'react';
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Button } from '@/components/ui/button';
 import { 
   Menu, Plus, Settings, Save, Paperclip, Send, Bot,
@@ -176,6 +183,11 @@ export function ChatControlBox({
   onThemesSettings,
   template,
 }: ChatControlBoxProps) {
+  // =========================================================================
+  // RESPONSIVE HOOK
+  // =========================================================================
+  const { isMobile } = useResponsive();
+  
   // =========================================================================
   // STATE MANAGEMENT
   // =========================================================================
@@ -552,7 +564,7 @@ export function ChatControlBox({
         />
       )}
       
-      {/* Main Content - No separator between rows */}
+      {/* Main Content - Mobile-responsive two-row layout */}
       <div className="p-3 space-y-2">
         {/* Attachments Preview */}
         {attachments.length > 0 && (
@@ -572,8 +584,8 @@ export function ChatControlBox({
           </div>
         )}
         
-        {/* Control Buttons Row - Tiny minimalist icons */}
-        <div className="flex items-center gap-1.5 justify-center">
+        {/* Control Buttons Row - Toolbar on top (mobile: full width, desktop: centered) */}
+        <div className="flex items-center gap-1.5 md:justify-center justify-between flex-wrap">
           {/* Hamburger Menu */}
           <div className="relative">
             <button
@@ -798,7 +810,7 @@ export function ChatControlBox({
           </button>
         </div>
         
-        {/* Message Input Row - Slim light-gray rounded input field */}
+        {/* Message Input Row - Mobile: full-width rounded input with icons inside */}
         <div className="flex items-center gap-2">
           {/* Hidden file input */}
           <input
@@ -809,16 +821,18 @@ export function ChatControlBox({
             onChange={handleFileUpload}
           />
           
-          {/* Paperclip Button */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
-            title="Attach files"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
+          {/* Desktop only: Paperclip Button outside input */}
+          {!isMobile && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
+              title="Attach files"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+          )}
           
-          {/* Input Container */}
+          {/* Input Container - Mobile: icons inside, Desktop: icons inside right side */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -828,12 +842,48 @@ export function ChatControlBox({
                 // Trigger auto-grow immediately after state update
                 requestAnimationFrame(() => adjustTextareaHeight());
               }}
+              onKeyDown={(e) => {
+                // Send on Enter (without Shift) on mobile
+                if (e.key === 'Enter' && !e.shiftKey && isMobile) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               placeholder={placeholder || defaultPlaceholder}
               disabled={selectedModels.length === 0}
               rows={1}
-              className="w-full pl-3 pr-16 py-2.5 rounded-md bg-zinc-200 text-zinc-800 placeholder:text-zinc-500 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`w-full py-2.5 rounded-full bg-zinc-200 text-zinc-800 placeholder:text-zinc-500 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 ${
+                isMobile ? 'pl-10 pr-12' : 'pl-3 pr-16'
+              }`}
               style={{ lineHeight: '1.5', minHeight: '40px', maxHeight: '200px', overflowY: 'hidden' }}
             />
+            
+            {/* Mobile: Paperclip inside input on left */}
+            {isMobile && (
+              <div className="absolute left-2 bottom-2 flex items-center gap-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-7 w-7 flex items-center justify-center rounded-full transition-colors text-zinc-500 hover:text-zinc-700"
+                  title="Attach files"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </button>
+                {/* Connectors Icon - Mobile inside left */}
+                {!hideConnectors && (
+                  <button
+                    onClick={() => setShowConnectorsStore(true)}
+                    className={`h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
+                      showConnectorsStore ? 'text-blue-500' : 'text-zinc-500 hover:text-zinc-700'
+                    }`}
+                    title="Connectors Store"
+                  >
+                    <Plug className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {/* Icons inside input on right */}
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
               {/* Microphone Icon */}
               {!hideVoiceInput && (
@@ -850,8 +900,8 @@ export function ChatControlBox({
                 </button>
               )}
               
-              {/* Connectors Icon */}
-              {!hideConnectors && (
+              {/* Desktop: Connectors Icon inside right */}
+              {!isMobile && !hideConnectors && (
                 <button
                   onClick={() => setShowConnectorsStore(true)}
                   className={`h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
@@ -862,18 +912,32 @@ export function ChatControlBox({
                   <Plug className="h-4 w-4" />
                 </button>
               )}
+              
+              {/* Mobile: Send Button inside input on right (after mic) */}
+              {isMobile && (
+                <button
+                  onClick={handleSend}
+                  disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
+                  className="h-7 w-7 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Send message"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
           
-          {/* Send Button */}
-          <button
-            onClick={handleSend}
-            disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
-            className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Send message"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+          {/* Send Button - Desktop only (outside input) */}
+          {!isMobile && (
+            <button
+              onClick={handleSend}
+              disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
+              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Send message"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
       

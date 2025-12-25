@@ -411,3 +411,7 @@
 - [ ] Copy EXACT textarea auto-grow logic to ChatControlBox
 - [ ] Ensure textarea expands when typing multiple lines
 - [ ] Test on mobile device with virtual keyboard
+- [x] Mobile-responsive ChatControlBox with two-row layout (toolbar on top, input below)
+
+## ChatControlBox Mobile Enhancement
+- [x] Add Send button to mobile layout (visible after mic icon)
