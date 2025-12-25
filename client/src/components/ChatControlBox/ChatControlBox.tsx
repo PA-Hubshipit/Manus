@@ -61,7 +61,7 @@ import { MODEL_PRESETS, AI_PROVIDERS } from '@/lib/ai-providers';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ChatWindowTemplate, getAccentClasses, getButtonClasses } from '@/lib/chat-templates';
 import '@/styles/chatcontrolbox.css';
-import { getCSSVariables, COMPUTED } from '@/config/chatcontrolbox.config';
+import { getCSSVariables, getScaledCSSVariables, COMPUTED, MIN_CONTAINER_WIDTH } from '@/config/chatcontrolbox.config';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -228,6 +228,10 @@ export function ChatControlBox({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputMessageRef = useRef(inputMessage);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Container width for responsive scaling
+  const [containerWidth, setContainerWidth] = useState<number>(MIN_CONTAINER_WIDTH);
 
   // =========================================================================
   // TEXTAREA AUTO-GROW
@@ -275,6 +279,43 @@ export function ChatControlBox({
   useEffect(() => {
     adjustTextareaHeight();
   }, [inputMessage, adjustTextareaHeight]);
+  
+  // ResizeObserver for container-based responsive scaling
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    // Initial measurement
+    const updateWidth = () => {
+      const width = container.getBoundingClientRect().width;
+      if (width > 0) {
+        setContainerWidth(width);
+      }
+    };
+    
+    // Measure immediately
+    updateWidth();
+    
+    // Set up ResizeObserver for dynamic updates
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        if (width > 0) {
+          setContainerWidth(width);
+        }
+      }
+    });
+    
+    resizeObserver.observe(container);
+    
+    // Also listen for window resize as fallback
+    window.addEventListener('resize', updateWidth);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
 
   // =========================================================================
   // STORAGE FUNCTIONS
@@ -532,11 +573,12 @@ export function ChatControlBox({
     ? 'Select at least one AI model to send a message' 
     : 'Type your message...';
 
-  // Get CSS variables for proportional sizing
-  const cssVars = getCSSVariables();
+  // Get CSS variables for proportional sizing - use container-based scaling
+  const cssVars = getScaledCSSVariables(containerWidth);
 
   return (
     <div 
+      ref={containerRef}
       className="chat-control-box bg-zinc-800 border border-zinc-700/50 w-full max-w-full overflow-hidden"
       style={cssVars}
     >

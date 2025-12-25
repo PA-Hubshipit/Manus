@@ -442,3 +442,12 @@
 - [x] Scale master dimension based on viewport width
 - [x] Test on mobile viewport sizes
 - [x] Update documentation with responsive behavior
+
+## Top-Down Responsive Scaling System
+- [x] Step 0: FloatingChatWindow detects device screen size on mount
+- [x] Step 1: Constrain window width to fit within screen (Math.min(400, screenWidth - padding))
+- [x] Step 2: ChatControlBox uses ResizeObserver to detect container width
+- [x] Step 3: Calculate master dimension based on container width (containerWidth / 362 * 48)
+- [x] Step 4: Apply proportional scaling to all toolbar items
+- [x] Step 5: Test on 320px, 360px, 375px, 390px, 414px screen widths
+- [x] Step 6: Write tests for container-based scaling

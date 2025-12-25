@@ -175,6 +175,60 @@ export const getCSSVariables = (): React.CSSProperties => ({
   '--ccb-min-width': `${MIN_CONTAINER_WIDTH}px`,
 } as React.CSSProperties);
 
+/**
+ * Calculate the scale factor based on container width.
+ * This ensures all toolbar items fit in one row.
+ * 
+ * @param containerWidth - The actual width of the ChatControlBox container
+ * @returns Scale factor (1.0 = full size, < 1.0 = scaled down)
+ */
+export const calculateScaleFactor = (containerWidth: number): number => {
+  // If container is larger than minimum, no scaling needed
+  if (containerWidth >= MIN_CONTAINER_WIDTH) {
+    return 1.0;
+  }
+  // Calculate scale factor to fit all items
+  // Minimum scale factor of 0.5 to maintain usability
+  return Math.max(0.5, containerWidth / MIN_CONTAINER_WIDTH);
+};
+
+/**
+ * Generate scaled CSS custom properties based on container width.
+ * This is the key function for container-based responsive scaling.
+ * 
+ * @param containerWidth - The actual width of the ChatControlBox container
+ * @returns CSS properties with scaled values
+ */
+export const getScaledCSSVariables = (containerWidth: number): React.CSSProperties => {
+  const scaleFactor = calculateScaleFactor(containerWidth);
+  const scaledRowHeight = Math.round(MASTER_ROW_HEIGHT * scaleFactor);
+  
+  return {
+    '--ccb-row-height': `${scaledRowHeight}px`,
+    '--ccb-toolbar-icon-size': `${Math.round(scaledRowHeight * RATIOS.toolbarIcon)}px`,
+    '--ccb-input-icon-size': `${Math.round(scaledRowHeight * RATIOS.inputIcon)}px`,
+    '--ccb-send-icon-size': `${Math.round(scaledRowHeight * RATIOS.sendIcon)}px`,
+    '--ccb-toolbar-icon-button-size': `${Math.round(scaledRowHeight * RATIOS.toolbarIconButton)}px`,
+    '--ccb-models-button-height': `${Math.round(scaledRowHeight * RATIOS.modelsButton.height)}px`,
+    '--ccb-models-button-min-width': `${Math.round(scaledRowHeight * RATIOS.modelsButton.minWidth)}px`,
+    '--ccb-presets-button-height': `${Math.round(scaledRowHeight * RATIOS.presetsButton.height)}px`,
+    '--ccb-presets-button-min-width': `${Math.round(scaledRowHeight * RATIOS.presetsButton.minWidth)}px`,
+    '--ccb-send-button-size': `${Math.round(scaledRowHeight * RATIOS.sendButton)}px`,
+    '--ccb-toolbar-gap': `${Math.round(scaledRowHeight * RATIOS.toolbarGap)}px`,
+    '--ccb-row-gap': `${Math.round(scaledRowHeight * RATIOS.rowGap)}px`,
+    '--ccb-container-padding': `${Math.round(scaledRowHeight * RATIOS.containerPadding)}px`,
+    '--ccb-container-padding-y': `${Math.round(scaledRowHeight * RATIOS.containerPaddingY)}px`,
+    '--ccb-input-height': `${Math.round(scaledRowHeight * RATIOS.inputHeight)}px`,
+    '--ccb-input-border-radius': `${Math.round(scaledRowHeight * RATIOS.inputBorderRadius)}px`,
+    '--ccb-input-padding-x': `${Math.round(scaledRowHeight * RATIOS.inputPaddingX)}px`,
+    '--ccb-container-border-radius': `${Math.round(scaledRowHeight * RATIOS.containerBorderRadius)}px`,
+    '--ccb-font-size': `${Math.round(scaledRowHeight * RATIOS.fontSize)}px`,
+    '--ccb-font-size-small': `${Math.round(scaledRowHeight * RATIOS.fontSizeSmall)}px`,
+    '--ccb-min-width': '0px', // No minimum when scaling
+    '--ccb-scale-factor': `${scaleFactor}`,
+  } as React.CSSProperties;
+};
+
 // =============================================================================
 // TAILWIND CLASS HELPERS
 // =============================================================================

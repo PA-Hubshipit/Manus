@@ -1,138 +1,31 @@
 /**
- * ChatControlBox CSS Variables
- * =============================
+ * ChatControlBox CSS Styles
+ * ==========================
  * 
- * PROPORTIONALITY SYSTEM
- * All dimensions derive from --ccb-row-height.
- * To resize the component, change ONLY --ccb-row-height.
+ * CONTAINER-BASED PROPORTIONALITY SYSTEM
+ * All dimensions are controlled via CSS custom properties set by JavaScript.
+ * The getScaledCSSVariables() function in chatcontrolbox.config.ts calculates
+ * the appropriate scale factor based on the actual container width.
  * 
- * RESPONSIVE SCALING
- * The master dimension automatically scales based on viewport width:
- * - Desktop (≥768px): 48px (full size)
- * - Tablet (640-767px): 44px (slightly reduced)
- * - Mobile Large (480-639px): 40px (compact)
- * - Mobile Medium (400-479px): 36px (more compact)
- * - Mobile Small (360-399px): 32px (minimum usable)
- * - Mobile XS (<360px): 28px (ultra compact)
+ * HOW IT WORKS:
+ * 1. FloatingChatWindow detects screen size and constrains itself
+ * 2. ChatControlBox uses ResizeObserver to detect its container width
+ * 3. getScaledCSSVariables() calculates scale factor: containerWidth / MIN_CONTAINER_WIDTH
+ * 4. All CSS variables are scaled proportionally
+ * 5. All UI elements use these CSS variables for sizing
  * 
  * REFERENCE: /home/ubuntu/multi-ai-chat/client/src/config/chatcontrolbox.config.ts
  */
-
-/* =============================================================================
-   BASE STYLES (Desktop - 768px and above)
-   ============================================================================= */
-
-.chat-control-box {
-  /* ==========================================================================
-     MASTER DIMENSION
-     ========================================================================== */
-  --ccb-row-height: 48px;
-  
-  /* ==========================================================================
-     ICON SIZES (derived from row height)
-     ========================================================================== */
-  --ccb-toolbar-icon-size: calc(var(--ccb-row-height) * 0.5);      /* 24px */
-  --ccb-input-icon-size: calc(var(--ccb-row-height) * 0.458);      /* 22px */
-  --ccb-send-icon-size: calc(var(--ccb-row-height) * 0.417);       /* 20px */
-  
-  /* ==========================================================================
-     BUTTON SIZES (derived from row height)
-     ========================================================================== */
-  --ccb-toolbar-icon-button-size: calc(var(--ccb-row-height) * 0.833);  /* 40px */
-  --ccb-models-button-height: calc(var(--ccb-row-height) * 0.833);      /* 40px */
-  --ccb-models-button-min-width: calc(var(--ccb-row-height) * 2.083);   /* 100px */
-  --ccb-presets-button-height: calc(var(--ccb-row-height) * 0.833);     /* 40px */
-  --ccb-presets-button-min-width: calc(var(--ccb-row-height) * 1.875);  /* 90px */
-  --ccb-send-button-size: calc(var(--ccb-row-height) * 0.75);           /* 36px */
-  
-  /* ==========================================================================
-     SPACING (derived from row height)
-     ========================================================================== */
-  --ccb-toolbar-gap: calc(var(--ccb-row-height) * 0.167);          /* 8px - tighter for mobile */
-  --ccb-row-gap: calc(var(--ccb-row-height) * 0.167);              /* 8px */
-  --ccb-container-padding: calc(var(--ccb-row-height) * 0.25);     /* 12px */
-  --ccb-container-padding-y: calc(var(--ccb-row-height) * 0.167);  /* 8px */
-  
-  /* ==========================================================================
-     INPUT FIELD (derived from row height)
-     ========================================================================== */
-  --ccb-input-height: calc(var(--ccb-row-height) * 0.833);         /* 40px */
-  --ccb-input-border-radius: calc(var(--ccb-row-height) * 0.417);  /* 20px - full round */
-  --ccb-input-padding-x: calc(var(--ccb-row-height) * 0.25);       /* 12px */
-  
-  /* ==========================================================================
-     CONTAINER (derived from row height)
-     ========================================================================== */
-  --ccb-container-border-radius: calc(var(--ccb-row-height) * 0.25);  /* 12px */
-  --ccb-min-width: 0;  /* No minimum on mobile - use 100% width */
-  
-  /* ==========================================================================
-     TYPOGRAPHY (derived from row height)
-     ========================================================================== */
-  --ccb-font-size: calc(var(--ccb-row-height) * 0.292);            /* 14px */
-  --ccb-font-size-small: calc(var(--ccb-row-height) * 0.25);       /* 12px */
-}
-
-/* =============================================================================
-   RESPONSIVE BREAKPOINTS
-   ============================================================================= */
-
-/* Mobile XS (< 360px) - Ultra compact */
-@media (max-width: 359px) {
-  .chat-control-box {
-    --ccb-row-height: 28px;
-  }
-}
-
-/* Mobile Small (360px - 399px) - Minimum usable */
-@media (min-width: 360px) and (max-width: 399px) {
-  .chat-control-box {
-    --ccb-row-height: 32px;
-  }
-}
-
-/* Mobile Medium (400px - 479px) - More compact */
-@media (min-width: 400px) and (max-width: 479px) {
-  .chat-control-box {
-    --ccb-row-height: 36px;
-  }
-}
-
-/* Mobile Large (480px - 639px) - Compact */
-@media (min-width: 480px) and (max-width: 639px) {
-  .chat-control-box {
-    --ccb-row-height: 40px;
-  }
-}
-
-/* Tablet (640px - 767px) - Slightly reduced */
-@media (min-width: 640px) and (max-width: 767px) {
-  .chat-control-box {
-    --ccb-row-height: 44px;
-  }
-}
-
-/* Desktop (768px and above) - Full size */
-@media (min-width: 768px) {
-  .chat-control-box {
-    --ccb-row-height: 48px;
-    --ccb-toolbar-gap: calc(var(--ccb-row-height) * 0.25);        /* 12px on desktop */
-    --ccb-row-gap: calc(var(--ccb-row-height) * 0.25);            /* 12px */
-    --ccb-container-padding: calc(var(--ccb-row-height) * 0.333); /* 16px */
-    --ccb-container-padding-y: calc(var(--ccb-row-height) * 0.25);/* 12px */
-    --ccb-min-width: 362px;  /* Enforce minimum on desktop */
-  }
-}
 
 /* =============================================================================
    COMPONENT STYLES
    ============================================================================= */
 
 .chat-control-box {
-  width: 100% !important;
-  max-width: 100% !important;
+  width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
-  min-width: 0 !important; /* Override any min-width to allow shrinking */
+  min-width: 0; /* Allow shrinking to any size */
   padding: var(--ccb-container-padding-y) var(--ccb-container-padding);
   border-radius: var(--ccb-container-border-radius);
   display: flex;
@@ -141,130 +34,176 @@
   overflow: hidden;
 }
 
-/* Toolbar Row */
+/* Toolbar Row - MUST NOT WRAP */
 .ccb-toolbar-row {
   display: flex;
   align-items: center;
   gap: var(--ccb-toolbar-gap);
   height: var(--ccb-row-height);
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-/* Toolbar Icon Button */
-.ccb-toolbar-icon-button {
-  width: var(--ccb-toolbar-icon-button-size);
-  height: var(--ccb-toolbar-icon-button-size);
-  min-width: var(--ccb-toolbar-icon-button-size);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: 0;
-}
-
-/* Toolbar Icon */
-.ccb-toolbar-icon {
-  width: var(--ccb-toolbar-icon-size);
-  height: var(--ccb-toolbar-icon-size);
-}
-
-/* Models Button (Blue Pill) */
-.ccb-models-button {
-  height: var(--ccb-models-button-height);
-  min-width: var(--ccb-models-button-min-width);
-  padding: 0 var(--ccb-container-padding);
-  font-size: var(--ccb-font-size);
-  border-radius: calc(var(--ccb-models-button-height) / 2);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* Presets Button (Gray Pill) */
-.ccb-presets-button {
-  height: var(--ccb-presets-button-height);
-  min-width: var(--ccb-presets-button-min-width);
-  padding: 0 var(--ccb-container-padding);
-  font-size: var(--ccb-font-size);
-  border-radius: calc(var(--ccb-presets-button-height) / 2);
-  flex-shrink: 0;
-  white-space: nowrap;
+  flex-wrap: nowrap; /* CRITICAL: Never wrap - scaling handles fit */
+  min-width: 0; /* Allow shrinking */
+  overflow: hidden;
 }
 
 /* Input Row */
 .ccb-input-row {
   display: flex;
   align-items: center;
-  min-height: var(--ccb-input-height);
-  background: #e5e5e5;
-  border-radius: var(--ccb-input-border-radius);
-  padding: 0 var(--ccb-input-padding-x);
   gap: var(--ccb-toolbar-gap);
-  width: 100%;
-  box-sizing: border-box;
+  min-height: var(--ccb-input-height);
+  min-width: 0; /* Allow shrinking */
 }
 
-/* Input Icon */
-.ccb-input-icon {
-  width: var(--ccb-input-icon-size);
-  height: var(--ccb-input-icon-size);
-  flex-shrink: 0;
-}
+/* =============================================================================
+   ICON BUTTONS
+   ============================================================================= */
 
-/* Input Field */
-.ccb-input-field {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: var(--ccb-font-size);
-  min-width: 0;
-  width: 100%;
-}
-
-/* Send Button */
-.ccb-send-button {
-  width: var(--ccb-send-button-size);
-  height: var(--ccb-send-button-size);
-  min-width: var(--ccb-send-button-size);
-  border-radius: 50%;
+.ccb-icon-button {
+  width: var(--ccb-toolbar-icon-button-size);
+  height: var(--ccb-toolbar-icon-button-size);
+  min-width: var(--ccb-toolbar-icon-button-size);
+  min-height: var(--ccb-toolbar-icon-button-size);
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 0;
+  border-radius: calc(var(--ccb-toolbar-icon-button-size) * 0.25);
 }
 
-/* Send Icon */
-.ccb-send-icon {
+.ccb-icon-button svg {
+  width: var(--ccb-toolbar-icon-size);
+  height: var(--ccb-toolbar-icon-size);
+}
+
+/* =============================================================================
+   PILL BUTTONS (Models, Presets)
+   ============================================================================= */
+
+.ccb-models-button {
+  height: var(--ccb-models-button-height);
+  min-width: var(--ccb-models-button-min-width);
+  padding: 0 calc(var(--ccb-container-padding) * 0.75);
+  font-size: var(--ccb-font-size);
+  border-radius: calc(var(--ccb-models-button-height) / 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--ccb-toolbar-gap) * 0.5);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ccb-presets-button {
+  height: var(--ccb-presets-button-height);
+  min-width: var(--ccb-presets-button-min-width);
+  padding: 0 calc(var(--ccb-container-padding) * 0.75);
+  font-size: var(--ccb-font-size);
+  border-radius: calc(var(--ccb-presets-button-height) / 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* =============================================================================
+   INPUT FIELD
+   ============================================================================= */
+
+.ccb-input-wrapper {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ccb-input {
+  width: 100%;
+  min-height: var(--ccb-input-height);
+  padding: calc(var(--ccb-container-padding-y) * 0.5) var(--ccb-input-padding-x);
+  padding-left: calc(var(--ccb-input-padding-x) + var(--ccb-input-icon-size) + 8px);
+  padding-right: calc(var(--ccb-input-padding-x) + var(--ccb-input-icon-size) + 8px);
+  font-size: var(--ccb-font-size);
+  border-radius: var(--ccb-input-border-radius);
+  resize: none;
+  overflow: hidden;
+}
+
+.ccb-input-icon-left,
+.ccb-input-icon-right {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ccb-input-icon-left {
+  left: calc(var(--ccb-input-padding-x) * 0.5);
+}
+
+.ccb-input-icon-right {
+  right: calc(var(--ccb-input-padding-x) * 0.5);
+}
+
+.ccb-input-icon-left svg,
+.ccb-input-icon-right svg {
+  width: var(--ccb-input-icon-size);
+  height: var(--ccb-input-icon-size);
+}
+
+/* =============================================================================
+   SEND BUTTON
+   ============================================================================= */
+
+.ccb-send-button {
+  width: var(--ccb-send-button-size);
+  height: var(--ccb-send-button-size);
+  min-width: var(--ccb-send-button-size);
+  min-height: var(--ccb-send-button-size);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: calc(var(--ccb-send-button-size) / 2);
+}
+
+.ccb-send-button svg {
   width: var(--ccb-send-icon-size);
   height: var(--ccb-send-icon-size);
 }
 
 /* =============================================================================
-   MOBILE-SPECIFIC ADJUSTMENTS
+   TYPOGRAPHY
    ============================================================================= */
 
-/* On very small screens, allow toolbar to wrap */
-@media (max-width: 479px) {
-  .ccb-toolbar-row {
-    flex-wrap: wrap;
-    height: auto;
-    min-height: var(--ccb-row-height);
-  }
-  
-  /* Make Models and Presets buttons smaller on mobile */
-  .ccb-models-button,
-  .ccb-presets-button {
-    min-width: auto;
-    padding: 0 calc(var(--ccb-container-padding) * 0.75);
-  }
+.ccb-text {
+  font-size: var(--ccb-font-size);
+  line-height: 1.4;
 }
 
-/* Hide text labels on very small screens, show only icons */
-@media (max-width: 359px) {
-  .ccb-models-button-text,
-  .ccb-presets-button-text {
-    display: none;
-  }
+.ccb-text-small {
+  font-size: var(--ccb-font-size-small);
+  line-height: 1.4;
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   ============================================================================= */
+
+.ccb-flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+.ccb-flex-1 {
+  flex: 1;
+  min-width: 0;
+}
+
+.ccb-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
