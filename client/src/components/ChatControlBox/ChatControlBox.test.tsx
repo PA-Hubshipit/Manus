@@ -71,7 +71,7 @@ describe('ChatControlBox', () => {
       render(<ChatControlBox {...defaultProps} />);
       
       expect(screen.getByTitle('Attach files')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Select at least one AI model to send a message')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Type your message')).toBeInTheDocument();
     });
 
     it('shows correct model count', () => {
@@ -91,14 +91,14 @@ describe('ChatControlBox', () => {
     it('disables input when no models are selected', () => {
       render(<ChatControlBox {...defaultProps} selectedModels={[]} />);
       
-      const textarea = screen.getByPlaceholderText('Select at least one AI model to send a message');
+      const textarea = screen.getByPlaceholderText('Type your message');
       expect(textarea).toBeDisabled();
     });
 
     it('enables input when models are selected', () => {
       render(<ChatControlBox {...defaultProps} selectedModels={['openai:gpt-4']} />);
       
-      const textarea = screen.getByPlaceholderText('Type your message...');
+      const textarea = screen.getByPlaceholderText('Type your message');
       expect(textarea).not.toBeDisabled();
     });
 

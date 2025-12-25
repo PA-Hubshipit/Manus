@@ -89,7 +89,7 @@ export default function EmptyPage() {
     };
 
     setChatWindows(prev => [...prev, newWindow]);
-    toast.success('New chat window opened');
+    toast.success('No messages yet - Select models to start chatting');
   }, [chatWindows]);
 
   const closeChatWindow = useCallback((id: string) => {

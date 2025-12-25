@@ -60,8 +60,6 @@ import { QuickPreset, loadQuickPresets, saveQuickPresets } from '@/lib/quick-pre
 import { MODEL_PRESETS, AI_PROVIDERS } from '@/lib/ai-providers';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ChatWindowTemplate, getAccentClasses, getButtonClasses } from '@/lib/chat-templates';
-import '@/styles/chatcontrolbox.css';
-import { getCSSVariables, getScaledCSSVariables, COMPUTED, MIN_CONTAINER_WIDTH } from '@/config/chatcontrolbox.config';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -228,10 +226,6 @@ export function ChatControlBox({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputMessageRef = useRef(inputMessage);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Container width for responsive scaling
-  const [containerWidth, setContainerWidth] = useState<number>(MIN_CONTAINER_WIDTH);
 
   // =========================================================================
   // TEXTAREA AUTO-GROW
@@ -279,43 +273,6 @@ export function ChatControlBox({
   useEffect(() => {
     adjustTextareaHeight();
   }, [inputMessage, adjustTextareaHeight]);
-  
-  // ResizeObserver for container-based responsive scaling
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    
-    // Initial measurement
-    const updateWidth = () => {
-      const width = container.getBoundingClientRect().width;
-      if (width > 0) {
-        setContainerWidth(width);
-      }
-    };
-    
-    // Measure immediately
-    updateWidth();
-    
-    // Set up ResizeObserver for dynamic updates
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        if (width > 0) {
-          setContainerWidth(width);
-        }
-      }
-    });
-    
-    resizeObserver.observe(container);
-    
-    // Also listen for window resize as fallback
-    window.addEventListener('resize', updateWidth);
-    
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateWidth);
-    };
-  }, []);
 
   // =========================================================================
   // STORAGE FUNCTIONS
@@ -569,19 +526,10 @@ export function ChatControlBox({
   // RENDER
   // =========================================================================
   
-  const defaultPlaceholder = selectedModels.length === 0 
-    ? 'Select at least one AI model to send a message' 
-    : 'Type your message...';
-
-  // Get CSS variables for proportional sizing - use container-based scaling
-  const cssVars = getScaledCSSVariables(containerWidth);
+  const defaultPlaceholder = 'Type your message';
 
   return (
-    <div 
-      ref={containerRef}
-      className="chat-control-box bg-zinc-800 border border-zinc-700/50 w-full max-w-full overflow-hidden"
-      style={cssVars}
-    >
+    <div className="bg-zinc-800 rounded-2xl border border-zinc-700/50 mx-2 mb-2">
       {/* Analytics Panel */}
       {showAnalytics && (
         <AnalyticsPanel 
@@ -635,15 +583,15 @@ export function ChatControlBox({
         )}
         
         {/* Control Buttons Row - Toolbar on top (mobile: full width, desktop: centered) */}
-        <div className="ccb-toolbar-row md:justify-center justify-between flex-wrap">
+        <div className="flex items-center gap-1.5 md:justify-center justify-between flex-wrap">
           {/* Hamburger Menu */}
           <div className="relative">
             <button
               onClick={() => setShowFooterMenu(!showFooterMenu)}
-              className="ccb-toolbar-icon-button text-zinc-400 hover:text-white transition-colors"
+              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
               title="Menu"
             >
-              <Menu className="ccb-toolbar-icon" />
+              <Menu className="h-5 w-5" />
             </button>
             
             {showFooterMenu && (
@@ -737,16 +685,16 @@ export function ChatControlBox({
           {/* Plus Button */}
           <button
             onClick={handleNewChat}
-            className="ccb-toolbar-icon-button text-zinc-400 hover:text-white transition-colors"
+            className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
             title="New Chat"
           >
-            <Plus className="ccb-toolbar-icon" />
+            <Plus className="h-5 w-5" />
           </button>
           
           {/* Models Button - Blue Pill with solid fill */}
           <button
             onClick={() => { setShowModelsPanel(!showModelsPanel); setShowPresetsPanel(false); }}
-            className="ccb-models-button bg-blue-500 hover:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center"
+            className="h-8 px-4 bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium rounded-full transition-colors"
           >
             {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
           </button>
@@ -755,7 +703,7 @@ export function ChatControlBox({
           {!hideSynthesizer && (
             <button
               onClick={onSynthesize}
-              className={`ccb-toolbar-icon-button transition-colors ${
+              className={`h-8 w-8 flex items-center justify-center transition-colors ${
                 selectedModels.length > 0 
                   ? 'text-blue-400 hover:text-blue-300' 
                   : 'text-zinc-500'
@@ -763,7 +711,7 @@ export function ChatControlBox({
               title="Generate Synthesis"
               disabled={selectedModels.length === 0}
             >
-              <Bot className="ccb-toolbar-icon" />
+              <Bot className="h-5 w-5" />
             </button>
           )}
           
@@ -771,10 +719,10 @@ export function ChatControlBox({
           <div className="relative">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="ccb-toolbar-icon-button text-zinc-400 hover:text-white transition-colors"
+              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
               title="Settings"
             >
-              <Settings className="ccb-toolbar-icon" />
+              <Settings className="h-5 w-5" />
             </button>
             
             {showSettings && (
@@ -841,27 +789,27 @@ export function ChatControlBox({
           <button
             onClick={handleSaveConversation}
             disabled={messages.length === 0}
-            className={`ccb-toolbar-icon-button transition-colors ${
+            className={`h-8 w-8 flex items-center justify-center transition-colors ${
               messages.length === 0 
                 ? 'text-zinc-600 cursor-not-allowed' 
                 : 'text-zinc-400 hover:text-white'
             }`}
             title="Save Conversation"
           >
-            <Save className="ccb-toolbar-icon" />
+            <Save className="h-5 w-5" />
           </button>
           
           {/* Presets Button - Light background pill */}
           <button
             onClick={() => { setShowPresetsPanel(!showPresetsPanel); setShowModelsPanel(false); }}
-            className="ccb-presets-button bg-zinc-600 hover:bg-zinc-500 text-zinc-200 font-medium transition-colors flex items-center justify-center"
+            className="h-8 px-4 bg-zinc-600 hover:bg-zinc-500 text-zinc-200 text-sm font-medium rounded-full transition-colors"
           >
             Presets
           </button>
         </div>
         
         {/* Message Input Row - Mobile: full-width rounded input with icons inside */}
-        <div className="flex items-center" style={{ gap: 'var(--ccb-toolbar-gap)' }}>
+        <div className="flex items-center gap-2">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -875,10 +823,10 @@ export function ChatControlBox({
           {!isMobile && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="ccb-toolbar-icon-button rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
+              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
               title="Attach files"
             >
-              <Paperclip className="ccb-input-icon" />
+              <Paperclip className="h-4 w-4" />
             </button>
           )}
           
@@ -905,7 +853,7 @@ export function ChatControlBox({
               className={`w-full py-2.5 rounded-full bg-zinc-200 text-zinc-800 placeholder:text-zinc-500 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 ${
                 isMobile ? 'pl-10 pr-12' : 'pl-3 pr-16'
               }`}
-              style={{ lineHeight: '1.5', minHeight: '40px', maxHeight: '200px', overflowY: 'hidden' }}
+              style={{ lineHeight: '1.5', minHeight: '40px', maxHeight: '200px' }}
             />
             
             {/* Mobile: Paperclip inside input on left */}
@@ -982,10 +930,10 @@ export function ChatControlBox({
             <button
               onClick={handleSend}
               disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
-              className="ccb-send-button transition-colors text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full transition-colors text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Send message"
             >
-              <ArrowUp className="ccb-send-icon" strokeWidth={2.125} />
+              <ArrowUp className="h-5 w-5" strokeWidth={2.125} />
             </button>
           )}
         </div>

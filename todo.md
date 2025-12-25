@@ -422,32 +422,24 @@
 - [ ] Make Send arrow icon thicker (bolder stroke weight)
 
 
-## Modern Theme ChatControlBox Fix
-- [x] Investigate why Modern theme shows Classic ChatControlBox design
-- [x] Fix Modern theme to display correct ChatControlBox (matching documented design)
-- [x] Take screenshot of Modern theme after switching from Classic
+## Project Structure and Hierarchy (NEXT PROBLEM TO FIX)
+- [ ] Audit project file structure - identify missing/orphaned files
+- [ ] Verify all CSS files are properly created and imported
+- [ ] Verify all config files exist and are properly referenced
+- [ ] Create missing chatcontrolbox.css file (was defined but never created)
+- [ ] Ensure consistent import paths across all components
+- [ ] Document the correct project structure hierarchy
 
+## FMF Framework Update v2.1 - File Creation Verification Rule
+- [ ] Add mandatory rule to FMF: "Once a change or creation of code is validated: (1) Create immediately an actual file, (2) Clear the cached/virtual state"
+- [ ] Update docs/FIX_MODIFY_FRAMEWORK.md with new "File Verification" section
+- [ ] Add to Pre-Change Verification checklist: "Verify file exists on disk before reading"
+- [ ] Add to Post-Change Verification: "Confirm file was actually written to disk"
+- [ ] Document the cached/virtual state error pattern and prevention
 
-## ChatControlBox Proportionality Fix (Phase 1)
-- [x] Step 1: Create `chatcontrolbox.config.ts` with master dimension and ratios
-- [x] Step 2: Generate CSS variables from config
-- [x] Step 3: Refactor ChatControlBox.tsx to use only CSS variables
-- [x] Step 4: Document proportionality rule in `ChatControlBox-Documentation.md`
-- [x] Step 5: Add visual regression test for proportions
-- [x] Step 6: Add Ratio Table to Responsiveness section in documentation
-
-## ChatControlBox Responsive Viewport Detection
-- [x] Implement viewport-aware responsive scaling for ChatControlBox
-- [x] Add CSS media queries for mobile breakpoints (360px, 375px, 390px, 414px)
-- [x] Scale master dimension based on viewport width
-- [x] Test on mobile viewport sizes
-- [x] Update documentation with responsive behavior
-
-## Top-Down Responsive Scaling System
-- [x] Step 0: FloatingChatWindow detects device screen size on mount
-- [x] Step 1: Constrain window width to fit within screen (Math.min(400, screenWidth - padding))
-- [x] Step 2: ChatControlBox uses ResizeObserver to detect container width
-- [x] Step 3: Calculate master dimension based on container width (containerWidth / 362 * 48)
-- [x] Step 4: Apply proportional scaling to all toolbar items
-- [x] Step 5: Test on 320px, 360px, 375px, 390px, 414px screen widths
-- [x] Step 6: Write tests for container-based scaling
+## ChatControlBox Fixes (Completed)
+- [x] Fix textarea auto-grow by removing overflowY: 'hidden' from inline style
+- [x] Move empty state message ("No messages yet") to toast notification
+- [x] Update toast text to "No messages yet - Select models to start chatting"
+- [x] Remove empty state section from FloatingChatWindow (show blank area)
+- [x] Update input placeholder to "Type your message"

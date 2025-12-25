@@ -86,7 +86,7 @@ interface FloatingChatWindowProps {
 // CONSTANTS
 // ============================================
 
-const MIN_WINDOW_WIDTH = 280; // Reduced to support smaller mobile screens
+const MIN_WINDOW_WIDTH = 320;
 const MAX_WINDOW_WIDTH = 1200;
 const MIN_WINDOW_HEIGHT = 300;
 const MAX_WINDOW_HEIGHT = 1000;
@@ -94,32 +94,6 @@ const DEFAULT_WINDOW_WIDTH = 400;
 const DEFAULT_WINDOW_HEIGHT = 500;
 const SNAP_THRESHOLD = 15; // Reduced for better mobile experience
 const EDGE_HANDLE_SIZE = 6;
-const WINDOW_PADDING = 8; // Padding from screen edges on mobile
-
-/**
- * Calculate the maximum window width based on screen size.
- * This ensures the window never exceeds the screen width.
- * @param screenWidth - The device screen width (window.innerWidth)
- * @returns The maximum allowed window width
- */
-const getMaxWindowWidthForScreen = (screenWidth: number): number => {
-  // On mobile (< 768px), constrain to screen width minus padding
-  if (screenWidth < 768) {
-    return Math.max(MIN_WINDOW_WIDTH, screenWidth - (WINDOW_PADDING * 2));
-  }
-  // On desktop, use the default max
-  return MAX_WINDOW_WIDTH;
-};
-
-/**
- * Calculate the initial window width based on screen size.
- * @param screenWidth - The device screen width (window.innerWidth)
- * @returns The initial window width
- */
-const getInitialWindowWidth = (screenWidth: number): number => {
-  const maxWidth = getMaxWindowWidthForScreen(screenWidth);
-  return Math.min(DEFAULT_WINDOW_WIDTH, maxWidth);
-};
 
 // ============================================
 // HELPER FUNCTIONS
@@ -176,30 +150,18 @@ export function FloatingChatWindow({
   // STATE - Window Management
   // ============================================
   
-  // Detect screen size once on mount for responsive sizing
-  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
-  const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
-  const isMobileScreen = screenWidth < 768;
-  const maxWindowWidth = getMaxWindowWidthForScreen(screenWidth);
-  const initialWindowWidth = getInitialWindowWidth(screenWidth);
-  
   const [position, setPosition] = useState(() => {
     const saved = loadWindowState(id);
-    const actualWidth = Math.min(initialWindowWidth, maxWindowWidth);
+    // Calculate actual rendered width (min of window width and 90vw)
+    const actualWidth = Math.min(DEFAULT_WINDOW_WIDTH, window.innerWidth * 0.9);
+    const isMobile = window.innerWidth < 768;
     
     if (saved.position) {
-      // On mobile, center the window or use saved position if it fits
-      const maxX = isMobileScreen ? Math.max(0, screenWidth - actualWidth) : screenWidth - MIN_WINDOW_WIDTH;
+      // On mobile, allow more flexible positioning
+      const maxX = isMobile ? Math.max(0, window.innerWidth - actualWidth) : window.innerWidth - MIN_WINDOW_WIDTH;
       return {
         x: clamp(saved.position.x, 0, maxX),
-        y: clamp(saved.position.y, 0, screenHeight - 100),
-      };
-    }
-    // On mobile, center the window horizontally
-    if (isMobileScreen) {
-      return {
-        x: Math.max(0, (screenWidth - actualWidth) / 2),
-        y: initialPosition.y,
+        y: clamp(saved.position.y, 0, window.innerHeight - 100),
       };
     }
     return initialPosition;
@@ -207,20 +169,13 @@ export function FloatingChatWindow({
   
   const [windowSize, setWindowSize] = useState(() => {
     const saved = loadWindowState(id);
-    // Constrain saved size to screen-appropriate maximum
-    const effectiveMaxWidth = maxWindowWidth;
-    
     if (saved.size) {
       return {
-        width: clamp(saved.size.width, MIN_WINDOW_WIDTH, effectiveMaxWidth),
+        width: clamp(saved.size.width, MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH),
         height: clamp(saved.size.height, MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT),
       };
     }
-    // Use screen-aware initial width
-    return {
-      width: initialWindowWidth,
-      height: initialSize.height,
-    };
+    return initialSize;
   });
   
   const [isPinned, setIsPinned] = useState(false);
@@ -958,7 +913,7 @@ export function FloatingChatWindow({
   
   const windowStyle: React.CSSProperties = isMaximized
     ? { position: 'fixed', top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0, width: '100vw', height: `calc(100vh - ${HEADER_HEIGHT}px)`, borderRadius: 0 }
-    : { top: position.y, left: position.x, width: `min(${windowSize.width}px, calc(100vw - 16px))`, height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)` };
+    : { top: position.y, left: position.x, width: `min(${windowSize.width}px, 90vw)`, height: isMinimized ? 'auto' : `min(${windowSize.height}px, 90vh)` };
   
   if (isMinimized) return null;
   
@@ -1379,11 +1334,7 @@ export function FloatingChatWindow({
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
-              <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
-              <p className="text-sm">No messages yet</p>
-              <p className="text-xs mt-1">Select models and start chatting</p>
-            </div>
+            <div className="flex-1" />
           ) : (
             messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
