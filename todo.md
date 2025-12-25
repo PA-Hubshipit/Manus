@@ -418,3 +418,20 @@
 
 ## Send Button Icon Update
 - [x] Change Send button icon from right arrow to upward arrow (like Manus)
+- [ ] Change Send button to simple gray icon style (no blue background, match mic/paperclip style)
+- [ ] Make Send arrow icon thicker (bolder stroke weight)
+
+
+## Modern Theme ChatControlBox Fix
+- [x] Investigate why Modern theme shows Classic ChatControlBox design
+- [x] Fix Modern theme to display correct ChatControlBox (matching documented design)
+- [x] Take screenshot of Modern theme after switching from Classic
+
+
+## ChatControlBox Proportionality Fix (Phase 1)
+- [x] Step 1: Create `chatcontrolbox.config.ts` with master dimension and ratios
+- [x] Step 2: Generate CSS variables from config
+- [x] Step 3: Refactor ChatControlBox.tsx to use only CSS variables
+- [x] Step 4: Document proportionality rule in `ChatControlBox-Documentation.md`
+- [x] Step 5: Add visual regression test for proportions
+- [x] Step 6: Add Ratio Table to Responsiveness section in documentation

@@ -60,6 +60,8 @@ import { QuickPreset, loadQuickPresets, saveQuickPresets } from '@/lib/quick-pre
 import { MODEL_PRESETS, AI_PROVIDERS } from '@/lib/ai-providers';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ChatWindowTemplate, getAccentClasses, getButtonClasses } from '@/lib/chat-templates';
+import '@/styles/chatcontrolbox.css';
+import { getCSSVariables, COMPUTED } from '@/config/chatcontrolbox.config';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -530,8 +532,14 @@ export function ChatControlBox({
     ? 'Select at least one AI model to send a message' 
     : 'Type your message...';
 
+  // Get CSS variables for proportional sizing
+  const cssVars = getCSSVariables();
+
   return (
-    <div className="bg-zinc-800 rounded-2xl border border-zinc-700/50 mx-2 mb-2">
+    <div 
+      className="chat-control-box bg-zinc-800 border border-zinc-700/50 mx-2 mb-2"
+      style={cssVars}
+    >
       {/* Analytics Panel */}
       {showAnalytics && (
         <AnalyticsPanel 
@@ -585,15 +593,15 @@ export function ChatControlBox({
         )}
         
         {/* Control Buttons Row - Toolbar on top (mobile: full width, desktop: centered) */}
-        <div className="flex items-center gap-1.5 md:justify-center justify-between flex-wrap">
+        <div className="ccb-toolbar-row md:justify-center justify-between flex-wrap">
           {/* Hamburger Menu */}
           <div className="relative">
             <button
               onClick={() => setShowFooterMenu(!showFooterMenu)}
-              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+              className="ccb-toolbar-icon-button text-zinc-400 hover:text-white transition-colors"
               title="Menu"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="ccb-toolbar-icon" />
             </button>
             
             {showFooterMenu && (
@@ -687,16 +695,16 @@ export function ChatControlBox({
           {/* Plus Button */}
           <button
             onClick={handleNewChat}
-            className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+            className="ccb-toolbar-icon-button text-zinc-400 hover:text-white transition-colors"
             title="New Chat"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="ccb-toolbar-icon" />
           </button>
           
           {/* Models Button - Blue Pill with solid fill */}
           <button
             onClick={() => { setShowModelsPanel(!showModelsPanel); setShowPresetsPanel(false); }}
-            className="h-8 px-4 bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium rounded-full transition-colors"
+            className="ccb-models-button bg-blue-500 hover:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center"
           >
             {selectedModels.length} Model{selectedModels.length !== 1 ? 's' : ''}
           </button>
@@ -705,7 +713,7 @@ export function ChatControlBox({
           {!hideSynthesizer && (
             <button
               onClick={onSynthesize}
-              className={`h-8 w-8 flex items-center justify-center transition-colors ${
+              className={`ccb-toolbar-icon-button transition-colors ${
                 selectedModels.length > 0 
                   ? 'text-blue-400 hover:text-blue-300' 
                   : 'text-zinc-500'
@@ -713,7 +721,7 @@ export function ChatControlBox({
               title="Generate Synthesis"
               disabled={selectedModels.length === 0}
             >
-              <Bot className="h-5 w-5" />
+              <Bot className="ccb-toolbar-icon" />
             </button>
           )}
           
@@ -721,10 +729,10 @@ export function ChatControlBox({
           <div className="relative">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="h-8 w-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+              className="ccb-toolbar-icon-button text-zinc-400 hover:text-white transition-colors"
               title="Settings"
             >
-              <Settings className="h-5 w-5" />
+              <Settings className="ccb-toolbar-icon" />
             </button>
             
             {showSettings && (
@@ -791,27 +799,27 @@ export function ChatControlBox({
           <button
             onClick={handleSaveConversation}
             disabled={messages.length === 0}
-            className={`h-8 w-8 flex items-center justify-center transition-colors ${
+            className={`ccb-toolbar-icon-button transition-colors ${
               messages.length === 0 
                 ? 'text-zinc-600 cursor-not-allowed' 
                 : 'text-zinc-400 hover:text-white'
             }`}
             title="Save Conversation"
           >
-            <Save className="h-5 w-5" />
+            <Save className="ccb-toolbar-icon" />
           </button>
           
           {/* Presets Button - Light background pill */}
           <button
             onClick={() => { setShowPresetsPanel(!showPresetsPanel); setShowModelsPanel(false); }}
-            className="h-8 px-4 bg-zinc-600 hover:bg-zinc-500 text-zinc-200 text-sm font-medium rounded-full transition-colors"
+            className="ccb-presets-button bg-zinc-600 hover:bg-zinc-500 text-zinc-200 font-medium transition-colors flex items-center justify-center"
           >
             Presets
           </button>
         </div>
         
         {/* Message Input Row - Mobile: full-width rounded input with icons inside */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center" style={{ gap: 'var(--ccb-toolbar-gap)' }}>
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -825,10 +833,10 @@ export function ChatControlBox({
           {!isMobile && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
+              className="ccb-toolbar-icon-button rounded-full bg-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-600 transition-colors"
               title="Attach files"
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="ccb-input-icon" />
             </button>
           )}
           
@@ -918,10 +926,10 @@ export function ChatControlBox({
                 <button
                   onClick={handleSend}
                   disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
-                  className="h-7 w-7 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-7 w-7 flex items-center justify-center rounded-full transition-colors text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Send message"
                 >
-                  <ArrowUp className="h-3.5 w-3.5" />
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.125} />
                 </button>
               )}
             </div>
@@ -932,10 +940,10 @@ export function ChatControlBox({
             <button
               onClick={handleSend}
               disabled={!inputMessage.trim() || selectedModels.length === 0 || isLoading}
-              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="ccb-send-button transition-colors text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Send message"
             >
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="ccb-send-icon" strokeWidth={2.125} />
             </button>
           )}
         </div>

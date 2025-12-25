@@ -1,0 +1,163 @@
+/**
+ * ChatControlBox CSS Variables
+ * =============================
+ * 
+ * PROPORTIONALITY SYSTEM
+ * All dimensions derive from --ccb-row-height.
+ * To resize the component, change ONLY --ccb-row-height.
+ * 
+ * REFERENCE: /home/ubuntu/multi-ai-chat/client/src/config/chatcontrolbox.config.ts
+ */
+
+.chat-control-box {
+  /* ==========================================================================
+     MASTER DIMENSION
+     ========================================================================== */
+  --ccb-row-height: 48px;
+  
+  /* ==========================================================================
+     ICON SIZES (derived from row height)
+     ========================================================================== */
+  --ccb-toolbar-icon-size: calc(var(--ccb-row-height) * 0.5);      /* 24px */
+  --ccb-input-icon-size: calc(var(--ccb-row-height) * 0.458);      /* 22px */
+  --ccb-send-icon-size: calc(var(--ccb-row-height) * 0.417);       /* 20px */
+  
+  /* ==========================================================================
+     BUTTON SIZES (derived from row height)
+     ========================================================================== */
+  --ccb-toolbar-icon-button-size: calc(var(--ccb-row-height) * 0.833);  /* 40px */
+  --ccb-models-button-height: calc(var(--ccb-row-height) * 0.833);      /* 40px */
+  --ccb-models-button-min-width: calc(var(--ccb-row-height) * 2.083);   /* 100px */
+  --ccb-presets-button-height: calc(var(--ccb-row-height) * 0.833);     /* 40px */
+  --ccb-presets-button-min-width: calc(var(--ccb-row-height) * 1.875);  /* 90px */
+  --ccb-send-button-size: calc(var(--ccb-row-height) * 0.75);           /* 36px */
+  
+  /* ==========================================================================
+     SPACING (derived from row height)
+     ========================================================================== */
+  --ccb-toolbar-gap: calc(var(--ccb-row-height) * 0.25);           /* 12px */
+  --ccb-row-gap: calc(var(--ccb-row-height) * 0.25);               /* 12px */
+  --ccb-container-padding: calc(var(--ccb-row-height) * 0.333);    /* 16px */
+  --ccb-container-padding-y: calc(var(--ccb-row-height) * 0.25);   /* 12px */
+  
+  /* ==========================================================================
+     INPUT FIELD (derived from row height)
+     ========================================================================== */
+  --ccb-input-height: calc(var(--ccb-row-height) * 0.917);         /* 44px */
+  --ccb-input-border-radius: calc(var(--ccb-row-height) * 0.458);  /* 22px - full round */
+  --ccb-input-padding-x: calc(var(--ccb-row-height) * 0.333);      /* 16px */
+  
+  /* ==========================================================================
+     CONTAINER (derived from row height)
+     ========================================================================== */
+  --ccb-container-border-radius: calc(var(--ccb-row-height) * 0.333);  /* 16px */
+  --ccb-min-width: 362px;  /* Calculated minimum for all toolbar items */
+  
+  /* ==========================================================================
+     TYPOGRAPHY (derived from row height)
+     ========================================================================== */
+  --ccb-font-size: calc(var(--ccb-row-height) * 0.292);            /* 14px */
+  --ccb-font-size-small: calc(var(--ccb-row-height) * 0.25);       /* 12px */
+}
+
+/* =============================================================================
+   COMPONENT STYLES
+   ============================================================================= */
+
+.chat-control-box {
+  min-width: var(--ccb-min-width);
+  padding: var(--ccb-container-padding-y) var(--ccb-container-padding);
+  border-radius: var(--ccb-container-border-radius);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ccb-row-gap);
+}
+
+/* Toolbar Row */
+.ccb-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ccb-toolbar-gap);
+  height: var(--ccb-row-height);
+}
+
+/* Toolbar Icon Button */
+.ccb-toolbar-icon-button {
+  width: var(--ccb-toolbar-icon-button-size);
+  height: var(--ccb-toolbar-icon-button-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Toolbar Icon */
+.ccb-toolbar-icon {
+  width: var(--ccb-toolbar-icon-size);
+  height: var(--ccb-toolbar-icon-size);
+}
+
+/* Models Button (Blue Pill) */
+.ccb-models-button {
+  height: var(--ccb-models-button-height);
+  min-width: var(--ccb-models-button-min-width);
+  padding: 0 var(--ccb-container-padding);
+  font-size: var(--ccb-font-size);
+  border-radius: calc(var(--ccb-models-button-height) / 2);
+  flex-shrink: 0;
+}
+
+/* Presets Button (Gray Pill) */
+.ccb-presets-button {
+  height: var(--ccb-presets-button-height);
+  min-width: var(--ccb-presets-button-min-width);
+  padding: 0 var(--ccb-container-padding);
+  font-size: var(--ccb-font-size);
+  border-radius: calc(var(--ccb-presets-button-height) / 2);
+  flex-shrink: 0;
+}
+
+/* Input Row */
+.ccb-input-row {
+  display: flex;
+  align-items: center;
+  height: var(--ccb-input-height);
+  background: #e5e5e5;
+  border-radius: var(--ccb-input-border-radius);
+  padding: 0 var(--ccb-input-padding-x);
+  gap: var(--ccb-toolbar-gap);
+}
+
+/* Input Icon */
+.ccb-input-icon {
+  width: var(--ccb-input-icon-size);
+  height: var(--ccb-input-icon-size);
+  flex-shrink: 0;
+}
+
+/* Input Field */
+.ccb-input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--ccb-font-size);
+  min-width: 0;
+}
+
+/* Send Button */
+.ccb-send-button {
+  width: var(--ccb-send-button-size);
+  height: var(--ccb-send-button-size);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Send Icon */
+.ccb-send-icon {
+  width: var(--ccb-send-icon-size);
+  height: var(--ccb-send-icon-size);
+}
