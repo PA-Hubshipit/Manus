@@ -596,7 +596,7 @@ export function ChatControlBox({
         )}
         
         {/* Desktop: Single row with all controls inline | Mobile: Two rows */}
-        <div className={`flex items-center ${isMobile ? 'flex-wrap justify-between gap-1.5 mb-2' : 'flex-nowrap gap-2'}`}>
+        <div className={`flex items-center ${isMobile ? 'flex-wrap justify-between gap-1 mb-2' : 'flex-nowrap gap-1'}`}>
           {/* Hamburger Menu */}
           <div className="relative">
             <button
