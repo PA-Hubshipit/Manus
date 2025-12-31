@@ -2,7 +2,32 @@
 
 This guide will help you install and run MultiChat on your Android device using Termux.
 
-## Prerequisites
+## ⚠️ Important Limitation
+
+**Building MultiChat directly on Termux is currently not possible** due to native dependencies (lightningcss) that don't support Android ARM64 architecture.
+
+### Recommended Solutions:
+
+**Option 1: Use Pre-built Version (Easiest)**
+- Have someone build MultiChat on a PC/Mac/Linux machine
+- Transfer the `dist` folder to your Termux device
+- Run the pre-built version (see instructions below)
+
+**Option 2: Access MultiChat via Web (Recommended for Mobile)**
+- Deploy MultiChat to a server (Vercel, Railway, etc.)
+- Install as PWA on your phone (see [MOBILE_INSTALL.md](./MOBILE_INSTALL.md))
+- This is the best mobile experience!
+
+**Option 3: Build on Another Machine, Run on Termux**
+- Build on a computer with `npm run build`
+- Copy the entire project to Termux
+- Run the pre-built version
+
+## Running Pre-built MultiChat on Termux
+
+If you have a pre-built version, follow these steps:
+
+### Prerequisites
 
 Before starting, make sure you have:
 - Termux app installed from [F-Droid](https://f-droid.org/packages/com.termux/) (not Google Play, as that version is outdated)
@@ -98,27 +123,48 @@ To generate a secure JWT secret, run:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Step 6: Install Project Dependencies
+## Step 6: Get Pre-built Files
 
+Since you can't build on Termux, you need the pre-built `dist` folder. Either:
+
+**Method A: Transfer from your computer**
 ```bash
-# Install all npm dependencies
-pnpm install
+# On your computer, build the project
+npm run build
+
+# Then use one of these methods to transfer:
+# 1. Use termux-setup-storage and copy via file manager
+# 2. Use scp/rsync to transfer files
+# 3. Upload to cloud storage and download in Termux
 ```
 
-This may take several minutes depending on your device and internet speed.
+**Method B: Clone with pre-built files**
+```bash
+# If the repository already has dist folder committed
+git clone https://github.com/YOUR_USERNAME/MultiChat.git
+cd MultiChat
+```
 
-## Step 7: Set Up Database Schema
+## Step 7: Install Production Dependencies Only
 
 ```bash
+# Install only production dependencies (no build tools needed)
+pnpm install --prod
+```
+
+## Step 8: Set Up Database Schema
+
+You need the dev dependencies for this one-time setup:
+
+```bash
+# Temporarily install dev dependencies for database setup
+pnpm install drizzle-kit
+
 # Run database migrations
 pnpm db:push
-```
 
-## Step 8: Build the Application
-
-```bash
-# Build the client and server
-pnpm build
+# Optional: Remove dev dependencies to save space
+pnpm prune --prod
 ```
 
 ## Step 9: Run MultiChat
@@ -147,6 +193,15 @@ You should see the MultiChat interface!
 
 ## Troubleshooting
 
+### Build Error: "Cannot find module '../lightningcss.android-arm64.node'"
+
+This error occurs because Tailwind CSS v4 uses native binaries that aren't available for Android ARM64.
+
+**Solution**: You cannot build on Termux. Use one of these alternatives:
+1. Build on a PC/Mac/Linux machine and transfer the `dist` folder
+2. Deploy MultiChat to a server and use the PWA (see [MOBILE_INSTALL.md](./MOBILE_INSTALL.md))
+3. Use a pre-built version from your repository
+
 ### MySQL Won't Start
 
 If MySQL fails to start:
@@ -172,18 +227,6 @@ lsof -i :5000
 
 # Kill the process (replace PID with actual process ID)
 kill -9 PID
-```
-
-### Out of Memory
-
-If you encounter memory issues during build:
-
-```bash
-# Increase Node.js memory limit
-export NODE_OPTIONS="--max-old-space-size=2048"
-
-# Try building again
-pnpm build
 ```
 
 ### Permission Errors
