@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Z_CLASS } from '@/lib/z-index';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useLocation } from 'wouter';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,9 +16,9 @@ import {
 import { CollapsibleMenuGroup } from '@/components/CollapsibleMenuGroup';
 import { PresetsManagementModal } from '@/components/PresetsManagementModal';
 import { ThemesSettingsModal } from '@/components/ThemesSettingsModal';
-import { 
-  Send, Plus, X, Menu, Save, Download, Star, ThumbsUp, ThumbsDown, 
-  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight, Settings, Archive, Edit, Palette
+import {
+  Send, Plus, X, Menu, Save, Download, Star, ThumbsUp, ThumbsDown,
+  MessageSquare, Grid, List, BarChart, Zap, GitCompare, Eye, EyeOff, Trash2, Paperclip, Image as ImageIcon, Sparkles, ChevronRight, Settings, Archive, Edit, Palette, Sun, Moon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AI_PROVIDERS, MODEL_PRESETS } from '@/lib/ai-providers';
@@ -66,6 +67,9 @@ export default function Home() {
   // The userAuth hooks provides authentication state
   // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
   let { user, loading, error, isAuthenticated, logout } = useAuth();
+
+  // Theme context
+  const { theme, toggleTheme } = useTheme();
 
   const [, setLocation] = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -750,6 +754,20 @@ export default function Home() {
               className="hidden md:inline-flex"
             >
               <BarChart className="h-5 w-5" />
+            </Button>
+            {/* Theme Toggle Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              className="shrink-0"
+            >
+              {theme === 'light' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
             </Button>
             {/* Mode Button with Dropdown */}
             <div className="relative">
